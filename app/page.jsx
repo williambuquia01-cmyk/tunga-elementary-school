@@ -72,7 +72,7 @@ const PPSSH=[
     {code:"6.6",label:"Health & nutrition programs (SBFP)"}]}
 ];
 const COLORS=["#1B4D7E","#2E6B4F","#7B3F00","#5B2C6F","#943126","#1A5276","#7D6608","#1E8449"];
-const E_SIG="data:image/png;base64,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";
+const E_SIG="/e_signature.png";
 const E_SIG_NAME="WILLIAM A. BUQUIA, Dev.Ed.D.";
 const E_SIG_TITLE="Principal I";
 const MONTHS=["July","Aug","Sep","Oct","Nov","Dec","Jan","Feb","Mar","Apr","May","Jun"];
@@ -374,31 +374,125 @@ export default function App(){
         {fields.map(x=><Inp key={x.key} label={x.label} value={f[x.key]||""} onChange={v=>ff(x.key,v)} ph={x.ph} ta={x.ta}/>)}
         <Btn onClick={add} full>Save</Btn></Modal></>);};
 
-  /* ═══ MEMOS (UPGRADED — with file attachment) ═══ */
+  /* ═══ MEMOS (UPGRADED — file attachment + DepEd PDF download) ═══ */
   const MemosPage=()=>{
-    const add=()=>{if(!f.mSubj?.trim())return;setMemos(prev=>[{id:uid(),date:now(),subject:f.mSubj.trim(),from:f.mFrom||"William A. Buquia",to:f.mTo||"",body:f.mBody||"",files:f.mFiles||[],signedBy:isAdmin?"admin":auth.name},...prev]);fr();setModal(null);};
+    const add=()=>{if(!f.mSubj?.trim())return;
+      const toVal=f.mTo?.trim()||"All Teachers, Tunga Elementary School";
+      setMemos(prev=>[{id:uid(),date:now(),subject:f.mSubj.trim(),from:f.mFrom||"WILLIAM A. BUQUIA, Dev.Ed.D.",to:toVal,body:f.mBody||"",files:f.mFiles||[],signedBy:isAdmin?"admin":auth.name,memoNum:f.mNum||""},...prev]);fr();setModal(null);};
     const addFile=(file)=>ff("mFiles",[...(f.mFiles||[]),file]);
     const delMemoFile=(mi,fi)=>setMemos(prev=>prev.map((m,i)=>i===mi?{...m,files:(m.files||[]).filter((_,j)=>j!==fi)}:m));
+
+    /* ── DepEd-Formatted PDF Generator ── */
+    const downloadPDF=(memo)=>{
+      const sigUrl=window.location.origin+"/e_signature.png";
+      const logoUrl=window.location.origin+(typeof LOGO==="string"&&LOGO.startsWith("data:")?LOGO:"/logo.jpg");
+      const useBase64Logo=typeof LOGO==="string"&&LOGO.startsWith("data:");
+      const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Memorandum - ${memo.subject}</title>
+<style>
+@page{size:8.5in 13in;margin:0.8in 1in 0.8in 1in;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Bookman Old Style','Times New Roman',Georgia,serif;font-size:12pt;color:#000;line-height:1.5;padding:0.8in 1in;}
+.header{text-align:center;margin-bottom:6pt;}
+.header .rep{font-family:'Old English Text MT','Blackletter686 BT','UnifrakturMaguntia',serif;font-size:12pt;font-weight:bold;margin-bottom:0;}
+.header .deped{font-family:'Old English Text MT','Blackletter686 BT','UnifrakturMaguntia',serif;font-size:18pt;font-weight:bold;margin-bottom:2pt;}
+.header .region{font-family:'Trajan Pro','Cinzel','Times New Roman',serif;font-size:10pt;font-weight:bold;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:0;}
+.header .division{font-family:'Trajan Pro','Cinzel','Times New Roman',serif;font-size:10pt;font-weight:bold;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:0;}
+.header .school{font-family:'Trajan Pro','Cinzel','Times New Roman',serif;font-size:9pt;font-weight:bold;letter-spacing:1px;text-transform:uppercase;margin-bottom:4pt;color:#333;}
+.header .seal{width:0.76in;height:0.76in;object-fit:contain;margin:4pt auto;display:block;}
+.border-line{border:none;border-top:2.5pt solid #000;margin:4pt 0 2pt 0;}
+.office{font-family:Tahoma,Arial,sans-serif;font-size:10pt;font-weight:bold;text-align:left;margin-bottom:16pt;}
+.memo-title{font-family:Tahoma,Arial,sans-serif;font-size:14pt;font-weight:bold;text-align:center;margin:16pt 0 12pt 0;text-decoration:underline;}
+.memo-fields{margin-bottom:14pt;}
+.memo-fields table{width:100%;border-collapse:collapse;}
+.memo-fields td{padding:3pt 6pt;vertical-align:top;font-size:12pt;}
+.memo-fields td.label{font-weight:bold;width:80pt;white-space:nowrap;}
+.memo-fields td.value{border-bottom:1pt solid #000;}
+.memo-body{margin:14pt 0;text-align:justify;font-size:12pt;line-height:1.6;}
+.memo-body p{margin-bottom:8pt;text-indent:36pt;}
+.signature-block{margin-top:36pt;page-break-inside:avoid;}
+.sig-line{margin-bottom:2pt;}
+.sig-img{height:52pt;object-fit:contain;display:block;}
+.sig-name{font-weight:bold;font-size:12pt;text-transform:uppercase;margin-top:-4pt;}
+.sig-title{font-size:10pt;color:#333;}
+.sig-date{font-size:10pt;color:#333;margin-top:2pt;}
+.footer{position:fixed;bottom:0.5in;left:1in;right:1in;text-align:center;font-family:Calibri,Arial,sans-serif;font-size:10pt;color:#555;border-top:1pt solid #ccc;padding-top:6pt;}
+.footer .school-name{font-weight:bold;font-size:10pt;}
+@media print{body{padding:0;margin:0;}.footer{position:fixed;bottom:0;}}
+</style>
+</head><body>
+
+<div class="header">
+  ${useBase64Logo?`<img src="${LOGO}" class="seal" alt="School Seal"/>`:`<img src="${logoUrl}" class="seal" alt="School Seal" onerror="this.style.display='none'"/>`}
+  <div class="rep">Republic of the Philippines</div>
+  <div class="deped">Department of Education</div>
+  <div class="region">Region VII — Central Visayas</div>
+  <div class="division">Schools Division of Cebu Province</div>
+  <div class="school">Tunga Elementary School — Moalboal, Cebu</div>
+</div>
+<hr class="border-line"/>
+<div class="office">Office of the Principal</div>
+
+<div class="memo-title">MEMORANDUM</div>
+
+<div class="memo-fields"><table>
+  ${memo.memoNum?`<tr><td class="label">No.:</td><td class="value">${memo.memoNum}, s. ${new Date().getFullYear()}</td></tr>`:""}
+  <tr><td class="label">TO:</td><td class="value">${memo.to||"All Teachers, Tunga Elementary School"}</td></tr>
+  <tr><td class="label">FROM:</td><td class="value">${memo.from||"WILLIAM A. BUQUIA, Dev.Ed.D., Principal I"}</td></tr>
+  <tr><td class="label">SUBJECT:</td><td class="value" style="font-weight:bold;text-transform:uppercase">${memo.subject}</td></tr>
+  <tr><td class="label">DATE:</td><td class="value">${memo.date}</td></tr>
+</table></div>
+
+<div class="memo-body">
+  ${(memo.body||"").split("\\n").filter(p=>p.trim()).map(p=>"<p>"+p+"</p>").join("")}
+</div>
+
+<div class="signature-block">
+  <div class="sig-line">Respectfully,</div>
+  <img src="${sigUrl}" class="sig-img" alt="" onerror="this.style.display='none'"/>
+  <div class="sig-name">WILLIAM A. BUQUIA, Dev.Ed.D.</div>
+  <div class="sig-title">Principal I</div>
+  <div class="sig-date">${memo.date}</div>
+</div>
+
+<div class="footer">
+  <div class="school-name">Tunga Elementary School</div>
+  <div>Brgy. Tunga, Moalboal, Cebu · School ID: 119502</div>
+  <div>Schools Division of Cebu Province · Region VII — Central Visayas</div>
+</div>
+
+<script>window.onload=function(){setTimeout(function(){window.print();},500);}<\/script>
+</body></html>`;
+      const w=window.open("","_blank","width=850,height=1100");
+      if(w){w.document.write(html);w.document.close();}
+    };
+
     return(<><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-      <h2 style={{fontSize:20,fontWeight:700}}>Memos</h2><Btn sm onClick={()=>{fr();ff("mFrom","William A. Buquia");setModal("addMemo");}}>{IC.plus} New Memo</Btn></div>
+      <h2 style={{fontSize:20,fontWeight:700}}>Memos</h2><Btn sm onClick={()=>{fr();ff("mFrom","WILLIAM A. BUQUIA, Dev.Ed.D.");ff("mTo","All Teachers, Tunga Elementary School");setModal("addMemo");}}>{IC.plus} New Memo</Btn></div>
       {memos.length===0&&<div style={{textAlign:"center",padding:32,color:"#ccc"}}>No memos yet.</div>}
       {memos.map((item,mi)=><div key={item.id} style={{background:"#fff",borderRadius:12,padding:14,marginBottom:8,borderLeft:"4px solid #1B4D7E"}}>
-        <div style={{display:"flex",justifyContent:"space-between"}}><div><h3 style={{fontSize:15,fontWeight:600,margin:0}}>{item.subject}</h3>
-          <div style={{fontSize:11,color:"#999",marginTop:2}}>{item.date} · From: {item.from} · To: {item.to}</div></div>
-          {isAdmin&&<button onClick={()=>setMemos(prev=>prev.filter(x=>x.id!==item.id))} style={{background:"none",border:"none",cursor:"pointer",color:"#999"}}>{IC.trash}</button>}</div>
+        <div style={{display:"flex",justifyContent:"space-between"}}><div style={{flex:1}}><h3 style={{fontSize:15,fontWeight:600,margin:0}}>{item.subject}</h3>
+          <div style={{fontSize:11,color:"#999",marginTop:2}}>{item.date} · To: {item.to||"All Teachers"}</div></div>
+          <div style={{display:"flex",gap:4,alignItems:"center"}}>
+            <Btn sm color="#2E6B4F" onClick={()=>downloadPDF(item)}>{IC.download} PDF</Btn>
+            {isAdmin&&<button onClick={()=>setMemos(prev=>prev.filter(x=>x.id!==item.id))} style={{background:"none",border:"none",cursor:"pointer",color:"#999"}}>{IC.trash}</button>}</div></div>
         {item.body&&<p style={{margin:"6px 0 0",fontSize:13,color:"#555",lineHeight:1.5,whiteSpace:"pre-wrap"}}>{item.body}</p>}
         {(item.files||[]).length>0&&<div style={{marginTop:8,paddingTop:8,borderTop:"1px solid #f0f0f0"}}>
           <div style={{fontSize:12,fontWeight:600,color:"#1B4D7E",marginBottom:4}}>Attachments ({item.files.length})</div>
           <FileList files={item.files} onDelete={isAdmin?(fi)=>delMemoFile(mi,fi):null}/></div>}
         <SignBlock show={item.signedBy==="admin"}/></div>)}
-      <Modal open={modal==="addMemo"} onClose={()=>setModal(null)} title="New Memo" wide>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}><Inp label="From" value={f.mFrom||""} onChange={v=>ff("mFrom",v)} ph="William A. Buquia"/><Inp label="To" value={f.mTo||""} onChange={v=>ff("mTo",v)} ph="All Teachers"/></div>
-        <Inp label="Subject" value={f.mSubj||""} onChange={v=>ff("mSubj",v)} ph="Subject"/>
-        <Inp label="Body" value={f.mBody||""} onChange={v=>ff("mBody",v)} ph="Content..." ta/>
-        <div style={{marginBottom:12}}><label style={{fontSize:13,fontWeight:500,color:"#666",marginBottom:4,display:"block"}}>Attachments</label>
+      <Modal open={modal==="addMemo"} onClose={()=>setModal(null)} title="New DepEd Memorandum" wide>
+        <div style={{background:"#e8f0fe",borderRadius:8,padding:10,marginBottom:14,fontSize:12,color:"#1B4D7E"}}>
+          <strong>DepEd Format:</strong> This memo will auto-generate a downloadable PDF following the DepEd Manual of Style (DMOS) with official letterhead, your e-signature, and proper formatting. If "To" is left blank, it defaults to "All Teachers."</div>
+        <Inp label="Memo Number (optional)" value={f.mNum||""} onChange={v=>ff("mNum",v)} ph="e.g. 001"/>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+          <Inp label="From" value={f.mFrom||""} onChange={v=>ff("mFrom",v)} ph="WILLIAM A. BUQUIA, Dev.Ed.D."/>
+          <Inp label="To" value={f.mTo||""} onChange={v=>ff("mTo",v)} ph="All Teachers, Tunga Elementary School"/></div>
+        <Inp label="Subject (will appear in ALL CAPS)" value={f.mSubj||""} onChange={v=>ff("mSubj",v)} ph="Subject of the memorandum"/>
+        <Inp label="Body" value={f.mBody||""} onChange={v=>ff("mBody",v)} ph="Type memo content here. Press Enter for new paragraphs..." ta/>
+        <div style={{marginBottom:12}}><label style={{fontSize:13,fontWeight:500,color:"#666",marginBottom:4,display:"block"}}>Attachments (optional)</label>
           <FileList files={f.mFiles||[]} onDelete={(i)=>ff("mFiles",(f.mFiles||[]).filter((_,j)=>j!==i))}/>
           <div style={{marginTop:6}}><FileUploader onUpload={addFile} accept=".pdf,.docx,.xlsx,.jpg,.jpeg,.png,.pptx"/></div></div>
-        <Btn onClick={add} full>Save Memo</Btn></Modal></>);};
+        <Btn onClick={add} full>Save & Generate Memo</Btn></Modal></>);};
 
   /* ═══ COORDINATORS (UPGRADED — with report folders & file upload) ═══ */
   const CoordsPage=()=>{
