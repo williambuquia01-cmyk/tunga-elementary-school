@@ -396,7 +396,8 @@ body{font-family:'Bookman Old Style','Times New Roman',Georgia,serif;font-size:1
 .header .deped{font-family:'Old English Text MT','Blackletter686 BT','UnifrakturMaguntia',serif;font-size:18pt;font-weight:bold;margin-bottom:2pt;}
 .header .region{font-family:'Trajan Pro','Cinzel','Times New Roman',serif;font-size:10pt;font-weight:bold;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:0;}
 .header .division{font-family:'Trajan Pro','Cinzel','Times New Roman',serif;font-size:10pt;font-weight:bold;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:0;}
-.header .school{font-family:'Trajan Pro','Cinzel','Times New Roman',serif;font-size:9pt;font-weight:bold;letter-spacing:1px;text-transform:uppercase;margin-bottom:4pt;color:#333;}
+.header .school{font-family:'Trajan Pro','Cinzel','Times New Roman',serif;font-size:11pt;font-weight:bold;letter-spacing:2px;text-transform:uppercase;margin-bottom:1pt;color:#000;}
+.header .school-addr{font-family:'Trajan Pro','Cinzel','Times New Roman',serif;font-size:9pt;letter-spacing:0.5px;margin-bottom:4pt;color:#333;}
 .header .seal{width:0.76in;height:0.76in;object-fit:contain;margin:4pt auto;display:block;}
 .border-line{border:none;border-top:2.5pt solid #000;margin:4pt 0 2pt 0;}
 .office{font-family:Tahoma,Arial,sans-serif;font-size:10pt;font-weight:bold;text-align:left;margin-bottom:16pt;}
@@ -426,7 +427,8 @@ body{font-family:'Bookman Old Style','Times New Roman',Georgia,serif;font-size:1
   <div class="deped">Department of Education</div>
   <div class="region">Region VII — Central Visayas</div>
   <div class="division">Schools Division of Cebu Province</div>
-  <div class="school">Tunga Elementary School — Moalboal, Cebu</div>
+  <div class="school">TUNGA ELEMENTARY SCHOOL</div>
+  <div class="school-addr">Tunga, Moalboal, Cebu</div>
 </div>
 <hr class="border-line"/>
 <div class="office">Office of the Principal</div>
