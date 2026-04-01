@@ -71,6 +71,52 @@ const PPSSH=[
     {code:"6.5",label:"DRRM implementation"},
     {code:"6.6",label:"Health & nutrition programs (SBFP)"}]}
 ];
+const PPST=[
+  {id:1,name:"Content Knowledge & Pedagogy",color:"#0D47A1",strands:[
+    {code:"1.1",label:"Content knowledge & its application within & across curriculum areas"},
+    {code:"1.2",label:"Research-based knowledge & principles of teaching & learning"},
+    {code:"1.3",label:"Positive use of ICT"},
+    {code:"1.4",label:"Strategies for promoting literacy & numeracy"},
+    {code:"1.5",label:"Strategies for developing critical & creative thinking"},
+    {code:"1.6",label:"Mother tongue, Filipino & English in teaching"},
+    {code:"1.7",label:"Classroom communication strategies"}]},
+  {id:2,name:"Learning Environment",color:"#1B5E20",strands:[
+    {code:"2.1",label:"Learner safety & security"},
+    {code:"2.2",label:"Fair learning environment"},
+    {code:"2.3",label:"Management of classroom structure & activities"},
+    {code:"2.4",label:"Support for learner participation"},
+    {code:"2.5",label:"Promotion of purposive learning"},
+    {code:"2.6",label:"Management of learner behavior"}]},
+  {id:3,name:"Diversity of Learners",color:"#BF360C",strands:[
+    {code:"3.1",label:"Learners' gender, needs, strengths, interests & experiences"},
+    {code:"3.2",label:"Learners' linguistic, cultural, socio-economic & religious backgrounds"},
+    {code:"3.3",label:"Learners with disabilities, giftedness & talents"},
+    {code:"3.4",label:"Learners in difficult circumstances"},
+    {code:"3.5",label:"Learners from indigenous groups"}]},
+  {id:4,name:"Curriculum & Planning",color:"#4A148C",strands:[
+    {code:"4.1",label:"Planning & management of teaching & learning process"},
+    {code:"4.2",label:"Learning outcomes aligned with learning competencies"},
+    {code:"4.3",label:"Relevance & responsiveness of learning programs"},
+    {code:"4.4",label:"Professional collaboration to enrich teaching practice"},
+    {code:"4.5",label:"Teaching & learning resources including ICT"}]},
+  {id:5,name:"Assessment & Reporting",color:"#880E4F",strands:[
+    {code:"5.1",label:"Design, selection, organization & utilization of assessment strategies"},
+    {code:"5.2",label:"Monitoring & evaluation of learner progress & achievement"},
+    {code:"5.3",label:"Feedback to improve learning"},
+    {code:"5.4",label:"Communication of learner needs, progress & achievement"},
+    {code:"5.5",label:"Use of assessment data to enhance teaching & learning"}]},
+  {id:6,name:"Community Linkages & Professional Engagement",color:"#E65100",strands:[
+    {code:"6.1",label:"Establishment of learning environments that are responsive to community contexts"},
+    {code:"6.2",label:"Engagement of parents & the wider school community"},
+    {code:"6.3",label:"Professional ethics"},
+    {code:"6.4",label:"School policies & procedures"}]},
+  {id:7,name:"Personal Growth & Professional Development",color:"#006064",strands:[
+    {code:"7.1",label:"Philosophy of teaching"},
+    {code:"7.2",label:"Dignity of teaching as a profession"},
+    {code:"7.3",label:"Professional links with colleagues"},
+    {code:"7.4",label:"Professional reflection & learning to improve practice"},
+    {code:"7.5",label:"Professional development goals"}]}
+];
 const COLORS=["#1B4D7E","#2E6B4F","#7B3F00","#5B2C6F","#943126","#1A5276","#7D6608","#1E8449"];
 const E_SIG="data:image/png;base64,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";
 const E_SIG_NAME="WILLIAM A. BUQUIA, Dev.Ed.D.";
@@ -206,6 +252,8 @@ export default function App(){
   const[tmovCats,setTmovCats]=useStore(`tmov3_${sy}`,[]);
   const[formTemplates,setFormTemplates]=useStore(`forms3_${sy}`,[]);
   const[coRequests,setCoRequests]=useStore(`co3_${sy}`,[]);
+  const[ppstMov,setPpstMov]=useStore(`ppst3_${sy}`,{});
+  const[classProgs,setClassProgs]=useStore(`cprog3_${sy}`,[]);
 
   if(!auth) return <LoginPage onLogin={setAuth} users={users}/>;
 
@@ -237,6 +285,8 @@ export default function App(){
     {id:"reports",label:"Report Modules",icon:"folder"},
     {id:"ppssh",label:"PPSSH MOVs",icon:"shield"},
     {id:"tmov",label:"Teacher MOV Uploads",icon:"upload"},
+    {id:"ppst",label:"PPST MOVs",icon:"student"},
+    {id:"classprog",label:"Class Programs",icon:"board"},
     {id:"co_schedule",label:"CO Schedule",icon:"cal"},
     {id:"forms",label:"Form Templates",icon:"clip"},
   ].filter(n=>isAdmin||canAccess(n.id));
@@ -266,9 +316,33 @@ export default function App(){
   /* ═══ STUDENTS ═══ */
   const StudentsPage=()=>{
     const[sg,setSg]=useState(null);const[ss,setSs]=useState(null);
+    const csvRef=useRef();
     const addSt=()=>{if(!f.sn?.trim())return;
-      setGrades(prev=>prev.map((g,i)=>i===sg?{...g,sections:g.sections.map((s,j)=>j===ss?{...s,students:[...(s.students||[]),{id:uid(),name:f.sn.trim(),lrn:f.sl||"",sex:f.sx||"M",dob:f.sd||""}]}:s)}:g));fr();setModal(null);};
+      setGrades(prev=>prev.map((g,i)=>i===sg?{...g,sections:g.sections.map((s,j)=>j===ss?{...s,students:[...(s.students||[]),{id:uid(),name:f.sn.trim(),lrn:f.sl||"",sex:f.sx||"M",dob:f.sd||"",is4ps:false,transfer:""}]}:s)}:g));fr();setModal(null);};
     const delSt=(gi,si,sid)=>setGrades(prev=>prev.map((g,i)=>i===gi?{...g,sections:g.sections.map((s,j)=>j===si?{...s,students:(s.students||[]).filter(x=>x.id!==sid)}:s)}:g));
+    /* SF1 CSV Upload Parser */
+    const parseSF1=(gi,si,file)=>{const reader=new FileReader();reader.onload=(e)=>{
+      const text=e.target.result;const lines=text.split("\n").map(l=>l.trim()).filter(Boolean);
+      if(lines.length<2)return;
+      const hdr=lines[0].toLowerCase().split(",").map(h=>h.trim().replace(/"/g,""));
+      const nameI=hdr.findIndex(h=>h.includes("name")||h.includes("learner"));
+      const lrnI=hdr.findIndex(h=>h.includes("lrn"));
+      const sexI=hdr.findIndex(h=>h.includes("sex")||h.includes("gender"));
+      const fourPsI=hdr.findIndex(h=>h.includes("4ps")||h.includes("pantawid"));
+      const transI=hdr.findIndex(h=>h.includes("transfer")||h.includes("trans"));
+      if(nameI<0){alert("CSV must have a 'Name' or 'Learner' column");return;}
+      const newStudents=[];
+      for(let i=1;i<lines.length;i++){
+        const cols=lines[i].split(",").map(c=>c.trim().replace(/"/g,""));
+        const name=cols[nameI]||"";if(!name)continue;
+        newStudents.push({id:uid(),name,lrn:lrnI>=0?cols[lrnI]||"":"",sex:sexI>=0?(cols[sexI]||"M").toUpperCase().startsWith("F")?"F":"M":"M",
+          is4ps:fourPsI>=0?["yes","y","true","1","4ps"].includes((cols[fourPsI]||"").toLowerCase()):false,
+          transfer:transI>=0?cols[transI]||"":""});
+      }
+      if(newStudents.length===0){alert("No students found in CSV");return;}
+      setGrades(prev=>prev.map((g,i)=>i===gi?{...g,sections:g.sections.map((s,j)=>j===si?{...s,students:[...(s.students||[]),...newStudents]}:s)}:g));
+      alert(`${newStudents.length} students imported!`);
+    };reader.readAsText(file);};
     const sec=sg!==null&&ss!==null?grades[sg]?.sections[ss]:null;const sts=sec?.students||[];
     const visibleGrades=isAdmin?grades:grades.map(g=>({...g,sections:g.sections.filter(s=>(auth.assignedSections||[]).includes(s.id))})).filter(g=>g.sections.length>0);
     return(<>
@@ -282,7 +356,15 @@ export default function App(){
       :(<><button onClick={()=>{setSg(null);setSs(null);}} style={{background:"none",border:"none",cursor:"pointer",fontSize:13,color:"#666",display:"flex",alignItems:"center",gap:4,marginBottom:10,fontFamily:"inherit"}}>{IC.back} Back</button>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
           <div><h3 style={{fontSize:18,fontWeight:700}}>{grades[sg].grade} — {sec.name}</h3><div style={{fontSize:12,color:"#888"}}>Adviser: {sec.adviser||"—"} · {sts.length}</div></div>
-          <Btn sm onClick={()=>{fr();ff("sx","M");setModal("addSt");}}>{IC.plus} Add</Btn></div>
+          <div style={{display:"flex",gap:4}}><Btn sm onClick={()=>{fr();ff("sx","M");setModal("addSt");}}>{IC.plus} Add</Btn>
+            <input ref={csvRef} type="file" accept=".csv" hidden onChange={e=>{if(e.target.files[0])parseSF1(sg,ss,e.target.files[0]);e.target.value="";}}/>
+            <Btn sm color="#2E6B4F" onClick={()=>csvRef.current?.click()}>{IC.upload} SF1 CSV</Btn></div></div>
+        {sts.length>0&&<div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:10}}>
+          {[{l:"Total",v:sts.length,c:"#1B4D7E"},{l:"Male",v:sts.filter(x=>x.sex==="M").length,c:"#1565C0"},{l:"Female",v:sts.filter(x=>x.sex==="F").length,c:"#C62828"},
+            {l:"4Ps",v:sts.filter(x=>x.is4ps).length,c:"#7D6608"},{l:"Trans-In",v:sts.filter(x=>(x.transfer||"").toLowerCase().includes("in")).length,c:"#2E6B4F"},
+            {l:"Trans-Out",v:sts.filter(x=>(x.transfer||"").toLowerCase().includes("out")).length,c:"#943126"}
+          ].map(s=><div key={s.l} style={{background:`${s.c}10`,borderRadius:8,padding:"4px 10px",textAlign:"center"}}>
+            <div style={{fontSize:16,fontWeight:700,color:s.c}}>{s.v}</div><div style={{fontSize:10,color:s.c}}>{s.l}</div></div>)}</div>}
         {["M","F"].map(sex=>{const list=sts.filter(x=>x.sex===sex);return<div key={sex} style={{marginBottom:14}}>
           <div style={{fontSize:13,fontWeight:600,color:sex==="M"?"#1B4D7E":"#943126",marginBottom:6,padding:"4px 10px",background:sex==="M"?"#e8f0fe":"#fde8e8",borderRadius:6,display:"inline-block"}}>{sex==="M"?"MALE":"FEMALE"} ({list.length})</div>
           {list.map((s,i)=><div key={s.id} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 12px",background:"#fff",borderRadius:8,marginBottom:3,border:"1px solid #f0f0f0"}}>
@@ -726,12 +808,67 @@ body{font-family:'Bookman Old Style','Times New Roman',Georgia,serif;font-size:1
         <Sel label="Grade" value={f.fg||""} onChange={v=>ff("fg",v)} options={["Select...",...DEF_GRADES]}/>
         <Btn onClick={addForm} full>Create</Btn></Modal></>);};
 
+  /* ═══ PPST MOVs (Philippine Professional Standards for Teachers) ═══ */
+  const PPSTPage=()=>{
+    const[sel,setSel]=useState(null);const dom=sel!==null?PPST.find(d=>d.id===sel):null;
+    const addMov=(did,sCode,file)=>{const k=`t${did}-${sCode}`;
+      setPpstMov(prev=>({...prev,[k]:[...(prev[k]||[]),{...file,id:uid(),teacher:f.ptt||""}]}));fr();setModal(null);};
+    const addText=(did,sCode)=>{if(!f.tmn?.trim())return;const k=`t${did}-${sCode}`;
+      setPpstMov(prev=>({...prev,[k]:[...(prev[k]||[]),{id:uid(),name:f.tmn.trim(),teacher:f.ptt||"",date:nowS(),type:"text/plain",size:0}]}));fr();setModal(null);};
+    const delMov=(did,sCode,idx)=>{const k=`t${did}-${sCode}`;setPpstMov(prev=>({...prev,[k]:(prev[k]||[]).filter((_,i)=>i!==idx)}));};
+    return(<><h2 style={{fontSize:20,fontWeight:700,marginBottom:6}}>PPST MOVs — 7 Domains</h2>
+      <p style={{color:"#666",fontSize:12,margin:"0 0 12px"}}>Philippine Professional Standards for Teachers · SY {sy}</p>
+      {!dom?<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(190px,1fr))",gap:10}}>
+        {PPST.map(d=>{const tot=Object.keys(ppstMov).filter(k=>k.startsWith(`t${d.id}-`)).reduce((a,k)=>a+ppstMov[k].length,0);
+          return<div key={d.id} onClick={()=>setSel(d.id)} style={{background:"#fff",borderRadius:14,padding:16,cursor:"pointer",borderLeft:`5px solid ${d.color}`}}>
+            <Badge color={d.color}>Domain {d.id}</Badge><div style={{fontSize:13,fontWeight:600,marginTop:6}}>{d.name}</div>
+            <div style={{fontSize:11,color:"#999",marginTop:4}}>{d.strands.length} strands · <strong>{tot} MOVs</strong></div></div>})}</div>
+      :(<><button onClick={()=>setSel(null)} style={{background:"none",border:"none",cursor:"pointer",fontSize:13,color:"#666",display:"flex",alignItems:"center",gap:4,marginBottom:10,fontFamily:"inherit"}}>{IC.back} All Domains</button>
+        <div style={{background:`linear-gradient(135deg,${dom.color},${dom.color}cc)`,borderRadius:14,padding:"16px 20px",color:"#fff",marginBottom:14}}>
+          <div style={{fontSize:11,opacity:.7}}>Domain {dom.id}</div><h3 style={{margin:"2px 0",fontSize:16,fontWeight:700}}>{dom.name}</h3></div>
+        {dom.strands.map(strand=>{const k=`t${dom.id}-${strand.code}`;const sm=ppstMov[k]||[];
+          return<div key={strand.code} style={{background:"#fff",borderRadius:10,padding:"12px 14px",marginBottom:8}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:4}}>
+              <div style={{flex:1}}><span style={{fontWeight:700,color:dom.color,fontSize:14}}>{strand.code}</span>
+                <span style={{fontSize:12,color:"#333",marginLeft:6}}>{strand.label}</span> <Badge>{sm.length}</Badge></div>
+              <div style={{display:"flex",gap:4,flexShrink:0}}>
+                <button onClick={()=>{fr();setModal(`ptU_${dom.id}_${strand.code}`);}} style={{width:28,height:28,borderRadius:6,background:dom.color,color:"#fff",border:"none",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}} title="Upload">{IC.upload}</button>
+                <button onClick={()=>{fr();setModal(`ptT_${dom.id}_${strand.code}`);}} style={{width:28,height:28,borderRadius:6,background:"#f0f4f8",color:dom.color,border:`1px solid ${dom.color}`,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}} title="Text entry">{IC.plus}</button></div></div>
+            <FileList files={sm} onDelete={isAdmin?(idx)=>delMov(dom.id,strand.code,idx):null}/>
+            <Modal open={modal===`ptU_${dom.id}_${strand.code}`} onClose={()=>setModal(null)} title={`Upload MOV — ${strand.code}`}>
+              <Inp label="Teacher" value={f.ptt||""} onChange={v=>ff("ptt",v)} ph="Teacher name"/>
+              <FileUploader onUpload={(file)=>addMov(dom.id,strand.code,{...file,teacher:f.ptt||""})}/></Modal>
+            <Modal open={modal===`ptT_${dom.id}_${strand.code}`} onClose={()=>setModal(null)} title={`Add MOV — ${strand.code}`}>
+              <Inp label="MOV Document Name" value={f.tmn||""} onChange={v=>ff("tmn",v)} ph="e.g. Lesson plan, COT rating..."/>
+              <Inp label="Teacher" value={f.ptt||""} onChange={v=>ff("ptt",v)} ph="Teacher name"/>
+              <Btn onClick={()=>addText(dom.id,strand.code)} full color={dom.color}>Add MOV</Btn></Modal></div>})}</>)}</>);};
+
+  /* ═══ CLASS PROGRAMS ═══ */
+  const ClassProgPage=()=>{
+    const addProg=(file)=>{setClassProgs(prev=>[...prev,{...file,id:uid(),teacher:f.cpt||"",grade:f.cpg||"",section:f.cps||""}]);fr();setModal(null);};
+    const delProg=(idx)=>setClassProgs(prev=>prev.filter((_,i)=>i!==idx));
+    const grouped={};classProgs.forEach(p=>{const k=p.teacher||"Unassigned";if(!grouped[k])grouped[k]=[];grouped[k].push(p);});
+    return(<><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+      <h2 style={{fontSize:20,fontWeight:700}}>Class Programs <Badge>{classProgs.length}</Badge></h2>
+      <Btn sm onClick={()=>{fr();setModal("addCP");}} color="#1B4D7E">{IC.plus} Upload</Btn></div>
+      <div style={{background:"#e8f0fe",borderRadius:10,padding:10,marginBottom:14,fontSize:12,color:"#1B4D7E"}}>
+        <strong>SY {sy}</strong> — Teachers upload their class programs here. Files are tagged by teacher, grade, and section.</div>
+      {Object.keys(grouped).length===0&&<div style={{textAlign:"center",padding:32,color:"#ccc"}}>No class programs uploaded yet.</div>}
+      {Object.entries(grouped).map(([teacher,files])=><div key={teacher} style={{background:"#fff",borderRadius:12,padding:14,marginBottom:10,borderLeft:"4px solid #1B4D7E"}}>
+        <h3 style={{fontSize:15,fontWeight:700,color:"#1B4D7E",marginBottom:6}}>{teacher}</h3>
+        <FileList files={files} onDelete={isAdmin?delProg:null}/></div>)}
+      <Modal open={modal==="addCP"} onClose={()=>setModal(null)} title="Upload Class Program">
+        <Inp label="Teacher" value={f.cpt||""} onChange={v=>ff("cpt",v)} ph="Teacher name"/>
+        <Sel label="Grade" value={f.cpg||""} onChange={v=>ff("cpg",v)} options={["Select...",...DEF_GRADES]}/>
+        <Inp label="Section" value={f.cps||""} onChange={v=>ff("cps",v)} ph="Section name"/>
+        <FileUploader onUpload={addProg} accept=".pdf,.docx,.xlsx,.jpg,.jpeg,.png"/></Modal></>);};
+
   /* ═══ RENDER ═══ */
   const pages={home:<HomePage/>,students:<StudentsPage/>,grades:<GradesPage/>,personnel:<PersonnelPage/>,coordinators:<CoordsPage/>,
     announcements:<ListPage title="Announcements" items={announcements} setItems={setAnnouncements} withSig={true} fields={[{key:"title",label:"Title",ph:"Title"},{key:"body",label:"Details",ph:"Details...",ta:true}]}/>,
     memos:<MemosPage/>,
     bulletins:<ListPage title="Bulletins" items={bulletins} setItems={setBulletins} fields={[{key:"title",label:"Title",ph:"Title"},{key:"body",label:"Content",ph:"Content...",ta:true}]}/>,
-    mooe:<MooePage/>,reports:<ReportsPage/>,ppssh:<PPSSHPage/>,tmov:<TmovPage/>,co_schedule:<COPage/>,forms:<FormsPage/>};
+    mooe:<MooePage/>,reports:<ReportsPage/>,ppssh:<PPSSHPage/>,tmov:<TmovPage/>,ppst:<PPSTPage/>,classprog:<ClassProgPage/>,co_schedule:<COPage/>,forms:<FormsPage/>};
 
   return(
     <div style={{display:"flex",minHeight:"100vh",fontFamily:"'Segoe UI',system-ui,sans-serif",background:"#f4f6f8"}}>
