@@ -1,15 +1,21 @@
+'use client';
 import { useState, useEffect, useCallback, useRef } from "react";
 
-/* ═══ STORAGE (persistent across sessions) ═══ */
-const PS={
-  async g(k){try{const r=await window.storage.get(k);return r?JSON.parse(r.value):null;}catch{return null;}},
-  async s(k,v){try{await window.storage.set(k,JSON.stringify(v));}catch{}},
-};
-function useStore(key,init){
-  const[val,setVal]=useState(init);const ref=useRef(val);ref.current=val;const loaded=useRef(false);
-  useEffect(()=>{PS.g(key).then(d=>{if(d!==null){setVal(d);ref.current=d;}loaded.current=true;});},[key]);
-  const save=useCallback((v)=>{const nv=typeof v==="function"?v(ref.current):v;ref.current=nv;setVal(nv);PS.s(key,nv);},[key]);
-  return[val,save];
+/* ═══ STORAGE (localStorage — works in any browser) ═══ */
+function useStore(key, init) {
+  const [val, setVal] = useState(init);
+  const ref = useRef(val);
+  ref.current = val;
+  useEffect(() => {
+    try { const d = localStorage.getItem(key); if (d) { const p = JSON.parse(d); setVal(p); ref.current = p; } } catch {}
+  }, [key]);
+  const save = useCallback((v) => {
+    const nv = typeof v === "function" ? v(ref.current) : v;
+    ref.current = nv;
+    setVal(nv);
+    try { localStorage.setItem(key, JSON.stringify(nv)); } catch {}
+  }, [key]);
+  return [val, save];
 }
 
 /* ═══ CONSTANTS ═══ */
