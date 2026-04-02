@@ -212,7 +212,7 @@ function SignBlock({show}){
 function LoginPage({onLogin,users}){
   const[u,setU]=useState("");const[p,setP]=useState("");const[err,setErr]=useState("");
   const go=()=>{
-    if(u==="admin"&&p==="admin123"){onLogin({role:"admin",name:"William A. Buquia",id:"admin"});return;}
+    if(u==="buquia"&&p==="buquia040685"){onLogin({role:"admin",name:"William A. Buquia",id:"admin"});return;}
     const found=users.find(x=>x.username===u.toLowerCase()&&x.password===p);
     if(found){onLogin({...found});return;}
     setErr("Invalid credentials");};
@@ -225,7 +225,7 @@ function LoginPage({onLogin,users}){
       <Inp label="Username" value={u} onChange={v=>{setU(v);setErr("");}} ph="Enter username"/>
       <Inp label="Password" value={p} onChange={v=>{setP(v);setErr("");}} ph="Enter password" type="password"/>
       <Btn onClick={go} full>Sign in</Btn>
-      <div style={{fontSize:11,color:"#bbb",textAlign:"center",marginTop:12}}>Admin: admin / admin123</div></div></div>);
+      <div style={{fontSize:11,color:"#bbb",textAlign:"center",marginTop:12}}>School Management System v3.0</div></div></div>);
 }
 
 /* ═══════════════ MAIN APP ═══════════════ */
@@ -254,6 +254,8 @@ export default function App(){
   const[coRequests,setCoRequests]=useStore(`co3_${sy}`,[]);
   const[ppstMov,setPpstMov]=useStore(`ppst3_${sy}`,{});
   const[classProgs,setClassProgs]=useStore(`cprog3_${sy}`,[]);
+  const[sf5Data,setSf5Data]=useStore(`sf5_${sy}`,{});
+  const[f14Data,setF14Data]=useStore(`f14_${sy}`,{});
 
   if(!auth) return <LoginPage onLogin={setAuth} users={users}/>;
 
@@ -267,7 +269,7 @@ export default function App(){
     if(isAdmin) return true;
     const always=["home","announcements","memos","bulletins","co_schedule"];
     if(always.includes(navId)) return true;
-    if(navId==="students"||navId==="grades") return (auth.assignedSections||[]).length>0;
+    if(navId==="students"||navId==="grades"||navId==="depedforms") return (auth.assignedSections||[]).length>0;
     if(navId==="reports"||navId==="tmov"||navId==="forms"||navId==="ppssh") return (auth.coordinatorOf||[]).length>0;
     return false;
   };
@@ -287,6 +289,7 @@ export default function App(){
     {id:"tmov",label:"Teacher MOV Uploads",icon:"upload"},
     {id:"ppst",label:"PPST MOVs",icon:"student"},
     {id:"classprog",label:"Class Programs",icon:"board"},
+    {id:"depedforms",label:"DepEd Forms",icon:"file"},
     {id:"co_schedule",label:"CO Schedule",icon:"cal"},
     {id:"forms",label:"Form Templates",icon:"clip"},
   ].filter(n=>isAdmin||canAccess(n.id));
@@ -315,38 +318,119 @@ export default function App(){
 
   /* ═══ STUDENTS ═══ */
   const StudentsPage=()=>{
-    const[sg,setSg]=useState(null);const[ss,setSs]=useState(null);
+    const[sg,setSg]=useState(null);const[ss,setSs]=useState(null);const[tab,setTab]=useState("sections");
     const csvRef=useRef();
     const addSt=()=>{if(!f.sn?.trim())return;
       setGrades(prev=>prev.map((g,i)=>i===sg?{...g,sections:g.sections.map((s,j)=>j===ss?{...s,students:[...(s.students||[]),{id:uid(),name:f.sn.trim(),lrn:f.sl||"",sex:f.sx||"M",dob:f.sd||"",is4ps:false,transfer:""}]}:s)}:g));fr();setModal(null);};
     const delSt=(gi,si,sid)=>setGrades(prev=>prev.map((g,i)=>i===gi?{...g,sections:g.sections.map((s,j)=>j===si?{...s,students:(s.students||[]).filter(x=>x.id!==sid)}:s)}:g));
-    /* SF1 CSV Upload Parser */
+    /* SF1 CSV Parser */
     const parseSF1=(gi,si,file)=>{const reader=new FileReader();reader.onload=(e)=>{
       const text=e.target.result;const lines=text.split("\n").map(l=>l.trim()).filter(Boolean);
-      if(lines.length<2)return;
-      const hdr=lines[0].toLowerCase().split(",").map(h=>h.trim().replace(/"/g,""));
-      const nameI=hdr.findIndex(h=>h.includes("name")||h.includes("learner"));
-      const lrnI=hdr.findIndex(h=>h.includes("lrn"));
-      const sexI=hdr.findIndex(h=>h.includes("sex")||h.includes("gender"));
-      const fourPsI=hdr.findIndex(h=>h.includes("4ps")||h.includes("pantawid"));
+      if(lines.length<2)return;const hdr=lines[0].toLowerCase().split(",").map(h=>h.trim().replace(/"/g,""));
+      const nameI=hdr.findIndex(h=>h.includes("name")||h.includes("learner"));const lrnI=hdr.findIndex(h=>h.includes("lrn"));
+      const sexI=hdr.findIndex(h=>h.includes("sex")||h.includes("gender"));const fourPsI=hdr.findIndex(h=>h.includes("4ps")||h.includes("pantawid"));
       const transI=hdr.findIndex(h=>h.includes("transfer")||h.includes("trans"));
       if(nameI<0){alert("CSV must have a 'Name' or 'Learner' column");return;}
-      const newStudents=[];
-      for(let i=1;i<lines.length;i++){
-        const cols=lines[i].split(",").map(c=>c.trim().replace(/"/g,""));
+      const ns=[];for(let i=1;i<lines.length;i++){const cols=lines[i].split(",").map(c=>c.trim().replace(/"/g,""));
         const name=cols[nameI]||"";if(!name)continue;
-        newStudents.push({id:uid(),name,lrn:lrnI>=0?cols[lrnI]||"":"",sex:sexI>=0?(cols[sexI]||"M").toUpperCase().startsWith("F")?"F":"M":"M",
+        ns.push({id:uid(),name,lrn:lrnI>=0?cols[lrnI]||"":"",sex:sexI>=0?(cols[sexI]||"M").toUpperCase().startsWith("F")?"F":"M":"M",
           is4ps:fourPsI>=0?["yes","y","true","1","4ps"].includes((cols[fourPsI]||"").toLowerCase()):false,
-          transfer:transI>=0?cols[transI]||"":""});
-      }
-      if(newStudents.length===0){alert("No students found in CSV");return;}
-      setGrades(prev=>prev.map((g,i)=>i===gi?{...g,sections:g.sections.map((s,j)=>j===si?{...s,students:[...(s.students||[]),...newStudents]}:s)}:g));
-      alert(`${newStudents.length} students imported!`);
-    };reader.readAsText(file);};
+          transfer:transI>=0?cols[transI]||"":""});}
+      if(!ns.length){alert("No students found");return;}
+      setGrades(prev=>prev.map((g,i)=>i===gi?{...g,sections:g.sections.map((s,j)=>j===si?{...s,students:[...(s.students||[]),...ns]}:s)}:g));
+      alert(`${ns.length} students imported!`);};reader.readAsText(file);};
+
+    /* SF2 PDF — Daily Attendance */
+    const genSF2=(grade,section,students)=>{
+      const days=Array.from({length:22},(_,i)=>i+1);
+      const rows=students.map((s,i)=>`<tr><td>${i+1}</td><td>${s.lrn||""}</td><td style="font-weight:500;white-space:nowrap">${s.name}</td><td>${s.sex}</td>${days.map(()=>"<td></td>").join("")}<td></td><td></td></tr>`).join("");
+      const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>SF2 - ${grade} ${section} - SY ${sy}</title>
+<style>@page{size:13in 8.5in;margin:0.4in;}*{margin:0;padding:0;box-sizing:border-box;}body{font-family:'Calibri',sans-serif;font-size:8pt;padding:0.4in;}
+.hdr{text-align:center;margin-bottom:6pt;}.hdr .t{font-size:12pt;font-weight:bold;}.hdr .s{font-size:9pt;color:#333;}
+table{width:100%;border-collapse:collapse;}th,td{border:1pt solid #999;padding:2pt 3pt;text-align:center;font-size:7pt;}
+th{background:#1B4D7E;color:#fff;font-size:7pt;}td:nth-child(3){text-align:left;min-width:120pt;}
+.sig{margin-top:12pt;display:flex;justify-content:space-between;font-size:9pt;}
+.sig div{text-align:center;width:35%;}.sig .line{border-top:1pt solid #000;margin-top:28pt;padding-top:2pt;font-weight:bold;}
+</style></head><body>
+<div class="hdr"><img src="${DEPED_SEAL}" style="width:0.5in;height:0.5in;object-fit:contain;"/><div class="t">School Form 2 (SF2) — Daily Attendance Report of Learners</div>
+<div class="s">Tunga Elementary School · ${grade} - ${section} · SY ${sy} · Month: ________</div></div>
+<table><thead><tr><th>#</th><th>LRN</th><th style="text-align:left">Learner's Name</th><th>Sex</th>${days.map(d=>`<th>${d}</th>`).join("")}<th>Abs</th><th>Tard</th></tr></thead>
+<tbody>${rows}
+<tr style="font-weight:bold;background:#e8f0fe"><td colspan="3">TOTAL</td><td>${students.length}</td>${days.map(()=>"<td></td>").join("")}<td></td><td></td></tr>
+<tr style="background:#e8f0fe"><td colspan="3">Male: ${students.filter(x=>x.sex==="M").length} | Female: ${students.filter(x=>x.sex==="F").length}</td><td></td>${days.map(()=>"<td></td>").join("")}<td></td><td></td></tr>
+</tbody></table>
+<div class="sig"><div>Prepared by:<div class="line">${grades[sg]?.sections[ss]?.adviser||"_______________"}</div><div>Class Adviser</div></div>
+<div>Certified Correct:<img src="${E_SIG}" style="height:30pt;display:block;margin:2pt auto;"/><div class="line">WILLIAM A. BUQUIA, Dev.Ed.D.</div><div>Principal I</div></div></div>
+<script>window.onload=function(){setTimeout(function(){window.print();},500);}<\/script></body></html>`;
+      const w=window.open("","_blank","width=1100,height=850");if(w){w.document.write(html);w.document.close();}};
+
+    /* SF4 PDF — Monthly Learner Movement */
+    const genSF4=(grade,section,students)=>{
+      const m=students.filter(x=>x.sex==="M").length;const fe=students.filter(x=>x.sex==="F").length;
+      const ti=students.filter(x=>(x.transfer||"").toLowerCase().includes("in")).length;
+      const to=students.filter(x=>(x.transfer||"").toLowerCase().includes("out")).length;
+      const fps=students.filter(x=>x.is4ps).length;
+      const months=["June","July","Aug","Sep","Oct","Nov","Dec","Jan","Feb","Mar","Apr"];
+      const mrows=months.map(mo=>`<tr><td style="font-weight:600">${mo}</td><td>${students.length}</td><td>${m}</td><td>${fe}</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>`).join("");
+      const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>SF4 - ${grade} ${section}</title>
+<style>@page{size:8.5in 13in;margin:0.6in;}*{margin:0;padding:0;box-sizing:border-box;}body{font-family:'Bookman Old Style',serif;font-size:10pt;padding:0.6in;}
+.hdr{text-align:center;margin-bottom:8pt;}.hdr .t{font-size:13pt;font-weight:bold;}.hdr .s{font-size:10pt;color:#333;}
+table{width:100%;border-collapse:collapse;margin:10pt 0;}th,td{border:1pt solid #999;padding:4pt 6pt;text-align:center;}
+th{background:#1B4D7E;color:#fff;font-size:9pt;}.sum{background:#e8f0fe;font-weight:bold;}
+.info{display:flex;justify-content:space-between;margin:8pt 0;font-size:10pt;}
+.sig{margin-top:20pt;display:flex;justify-content:space-between;}.sig div{text-align:center;width:40%;}.sig .line{border-top:1pt solid #000;margin-top:30pt;padding-top:2pt;font-weight:bold;font-size:10pt;}
+</style></head><body>
+<div class="hdr"><img src="${DEPED_SEAL}" style="width:0.6in;height:0.6in;object-fit:contain;"/><div class="t">School Form 4 (SF4)</div>
+<div class="s">Monthly Learner Movement and Attendance · SY ${sy}</div></div>
+<div class="info"><div><strong>School:</strong> Tunga ES (119502)</div><div><strong>Grade/Section:</strong> ${grade} - ${section}</div><div><strong>Adviser:</strong> ${grades[sg]?.sections[ss]?.adviser||"—"}</div></div>
+<table><thead><tr><th>Month</th><th>Enrollment</th><th>Male</th><th>Female</th><th>Trans-In</th><th>Trans-Out</th><th>Dropout</th><th>Abs(M)</th><th>Abs(F)</th><th>Late Enroll</th><th>Remarks</th></tr></thead>
+<tbody>${mrows}</tbody></table>
+<table><thead><tr><th colspan="6">ENROLLMENT SUMMARY</th></tr></thead>
+<tbody><tr class="sum"><td>Total: ${students.length}</td><td>Male: ${m}</td><td>Female: ${fe}</td><td>4Ps: ${fps}</td><td>Trans-In: ${ti}</td><td>Trans-Out: ${to}</td></tr></tbody></table>
+<div class="sig"><div>Prepared by:<div class="line">${grades[sg]?.sections[ss]?.adviser||"_______________"}</div><div>Class Adviser</div></div>
+<div>Certified Correct:<img src="${E_SIG}" style="height:36pt;display:block;margin:2pt auto;"/><div class="line">WILLIAM A. BUQUIA, Dev.Ed.D.</div><div>Principal I</div></div></div>
+<script>window.onload=function(){setTimeout(function(){window.print();},500);}<\/script></body></html>`;
+      const w=window.open("","_blank","width=850,height=1100");if(w){w.document.write(html);w.document.close();}};
+
     const sec=sg!==null&&ss!==null?grades[sg]?.sections[ss]:null;const sts=sec?.students||[];
     const visibleGrades=isAdmin?grades:grades.map(g=>({...g,sections:g.sections.filter(s=>(auth.assignedSections||[]).includes(s.id))})).filter(g=>g.sections.length>0);
+
+    /* Consolidation data (admin only) */
+    const allData=grades.flatMap(g=>g.sections.map(s=>({grade:g.grade,section:s.name,adviser:s.adviser,total:(s.students||[]).length,
+      male:(s.students||[]).filter(x=>x.sex==="M").length,female:(s.students||[]).filter(x=>x.sex==="F").length,
+      fps:(s.students||[]).filter(x=>x.is4ps).length,ti:(s.students||[]).filter(x=>(x.transfer||"").toLowerCase().includes("in")).length,
+      to:(s.students||[]).filter(x=>(x.transfer||"").toLowerCase().includes("out")).length})));
+
     return(<>
-      <h2 style={{fontSize:20,fontWeight:700,marginBottom:12}}>Students <Badge>{totalStudents}</Badge></h2>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+        <h2 style={{fontSize:20,fontWeight:700}}>Students <Badge>{totalStudents}</Badge></h2>
+        {isAdmin&&<div style={{display:"flex",gap:4}}>{["sections","consolidation"].map(t=><button key={t} onClick={()=>{setTab(t);setSg(null);setSs(null);}}
+          style={{padding:"6px 14px",borderRadius:8,border:tab===t?"2px solid #1B4D7E":"2px solid #e4e7ec",background:tab===t?"#1B4D7E":"#fff",color:tab===t?"#fff":"#333",fontWeight:600,cursor:"pointer",fontSize:12,fontFamily:"inherit",textTransform:"capitalize"}}>{t}</button>)}</div>}</div>
+
+      {/* ── CONSOLIDATION TAB (admin only) ── */}
+      {tab==="consolidation"&&isAdmin&&(<div>
+        <div style={{background:"#e8f0fe",borderRadius:10,padding:12,marginBottom:14,fontSize:12,color:"#1B4D7E"}}>
+          <strong>School-Wide Consolidation · SY {sy}</strong> — Summary of all sections. Only visible to admin.</div>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:14}}>
+          {[{l:"Total Learners",v:allData.reduce((a,d)=>a+d.total,0),c:"#1B4D7E"},{l:"Male",v:allData.reduce((a,d)=>a+d.male,0),c:"#1565C0"},
+            {l:"Female",v:allData.reduce((a,d)=>a+d.female,0),c:"#C62828"},{l:"4Ps",v:allData.reduce((a,d)=>a+d.fps,0),c:"#7D6608"},
+            {l:"Trans-In",v:allData.reduce((a,d)=>a+d.ti,0),c:"#2E6B4F"},{l:"Trans-Out",v:allData.reduce((a,d)=>a+d.to,0),c:"#943126"}
+          ].map(s=><div key={s.l} style={{background:`${s.c}10`,borderRadius:10,padding:"8px 16px",textAlign:"center",flex:1,minWidth:100}}>
+            <div style={{fontSize:22,fontWeight:700,color:s.c}}>{s.v}</div><div style={{fontSize:10,color:s.c,fontWeight:600}}>{s.l}</div></div>)}</div>
+        <div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+          <thead><tr style={{background:"#1B4D7E",color:"#fff"}}>{["Grade","Section","Adviser","Total","Male","Female","4Ps","Trans-In","Trans-Out"].map(h=><th key={h} style={{padding:"8px 10px",textAlign:"left",fontWeight:600,whiteSpace:"nowrap"}}>{h}</th>)}</tr></thead>
+          <tbody>{allData.map((d,i)=><tr key={i} style={{background:i%2?"#f5f7fa":"#fff"}}>
+            <td style={{padding:"6px 10px",fontWeight:600}}>{d.grade}</td><td style={{padding:"6px 10px"}}>{d.section}</td><td style={{padding:"6px 10px"}}>{d.adviser||"—"}</td>
+            <td style={{padding:"6px 10px",fontWeight:700,color:"#1B4D7E"}}>{d.total}</td><td style={{padding:"6px 10px"}}>{d.male}</td><td style={{padding:"6px 10px"}}>{d.female}</td>
+            <td style={{padding:"6px 10px",color:"#7D6608"}}>{d.fps}</td><td style={{padding:"6px 10px",color:"#2E6B4F"}}>{d.ti}</td><td style={{padding:"6px 10px",color:"#943126"}}>{d.to}</td></tr>)}
+          <tr style={{background:"#1B4D7E",color:"#fff",fontWeight:700}}><td style={{padding:"8px 10px"}} colSpan={3}>TOTAL</td>
+            <td style={{padding:"8px 10px"}}>{allData.reduce((a,d)=>a+d.total,0)}</td><td style={{padding:"8px 10px"}}>{allData.reduce((a,d)=>a+d.male,0)}</td>
+            <td style={{padding:"8px 10px"}}>{allData.reduce((a,d)=>a+d.female,0)}</td><td style={{padding:"8px 10px"}}>{allData.reduce((a,d)=>a+d.fps,0)}</td>
+            <td style={{padding:"8px 10px"}}>{allData.reduce((a,d)=>a+d.ti,0)}</td><td style={{padding:"8px 10px"}}>{allData.reduce((a,d)=>a+d.to,0)}</td></tr>
+          </tbody></table></div></div>)}
+
+      {/* ── SECTIONS TAB ── */}
+      {tab==="sections"&&(<>
       {!sec?visibleGrades.map((g,gi)=>{const realGi=grades.findIndex(x=>x.grade===g.grade);return<div key={gi} style={{background:"#fff",borderRadius:12,padding:14,marginBottom:10}}>
         <h3 style={{fontSize:15,fontWeight:600,color:"#1B4D7E",marginBottom:8}}>{g.grade}</h3>
         <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>{g.sections.map((s,si)=>{const realSi=grades[realGi].sections.findIndex(x=>x.id===s.id);const m=(s.students||[]).filter(x=>x.sex==="M").length;
@@ -354,11 +438,15 @@ export default function App(){
             <div style={{fontWeight:600,fontSize:14}}>{s.name}</div><div style={{fontSize:11,color:"#888"}}>Adviser: {s.adviser||"—"}</div>
             <div style={{fontSize:12,color:"#1B4D7E",fontWeight:600,marginTop:4}}>{(s.students||[]).length} ({m}M / {(s.students||[]).length-m}F)</div></button>})}</div></div>})
       :(<><button onClick={()=>{setSg(null);setSs(null);}} style={{background:"none",border:"none",cursor:"pointer",fontSize:13,color:"#666",display:"flex",alignItems:"center",gap:4,marginBottom:10,fontFamily:"inherit"}}>{IC.back} Back</button>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:12}}>
           <div><h3 style={{fontSize:18,fontWeight:700}}>{grades[sg].grade} — {sec.name}</h3><div style={{fontSize:12,color:"#888"}}>Adviser: {sec.adviser||"—"} · {sts.length}</div></div>
-          <div style={{display:"flex",gap:4}}><Btn sm onClick={()=>{fr();ff("sx","M");setModal("addSt");}}>{IC.plus} Add</Btn>
+          <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+            <Btn sm onClick={()=>{fr();ff("sx","M");setModal("addSt");}}>{IC.plus} Add</Btn>
             <input ref={csvRef} type="file" accept=".csv" hidden onChange={e=>{if(e.target.files[0])parseSF1(sg,ss,e.target.files[0]);e.target.value="";}}/>
-            <Btn sm color="#2E6B4F" onClick={()=>csvRef.current?.click()}>{IC.upload} SF1 CSV</Btn></div></div>
+            <Btn sm color="#2E6B4F" onClick={()=>csvRef.current?.click()}>{IC.upload} SF1</Btn>
+            {sts.length>0&&<Btn sm color="#7B3F00" onClick={()=>genSF2(grades[sg].grade,sec.name,sts)}>{IC.download} SF2</Btn>}
+            {sts.length>0&&<Btn sm color="#5B2C6F" onClick={()=>genSF4(grades[sg].grade,sec.name,sts)}>{IC.download} SF4</Btn>}
+          </div></div>
         {sts.length>0&&<div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:10}}>
           {[{l:"Total",v:sts.length,c:"#1B4D7E"},{l:"Male",v:sts.filter(x=>x.sex==="M").length,c:"#1565C0"},{l:"Female",v:sts.filter(x=>x.sex==="F").length,c:"#C62828"},
             {l:"4Ps",v:sts.filter(x=>x.is4ps).length,c:"#7D6608"},{l:"Trans-In",v:sts.filter(x=>(x.transfer||"").toLowerCase().includes("in")).length,c:"#2E6B4F"},
@@ -368,14 +456,14 @@ export default function App(){
         {["M","F"].map(sex=>{const list=sts.filter(x=>x.sex===sex);return<div key={sex} style={{marginBottom:14}}>
           <div style={{fontSize:13,fontWeight:600,color:sex==="M"?"#1B4D7E":"#943126",marginBottom:6,padding:"4px 10px",background:sex==="M"?"#e8f0fe":"#fde8e8",borderRadius:6,display:"inline-block"}}>{sex==="M"?"MALE":"FEMALE"} ({list.length})</div>
           {list.map((s,i)=><div key={s.id} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 12px",background:"#fff",borderRadius:8,marginBottom:3,border:"1px solid #f0f0f0"}}>
-            <span style={{fontSize:12,color:"#999",width:24}}>{i+1}.</span><div style={{flex:1}}><div style={{fontSize:13,fontWeight:500}}>{s.name}</div><div style={{fontSize:11,color:"#999"}}>LRN: {s.lrn||"—"}</div></div>
+            <span style={{fontSize:12,color:"#999",width:24}}>{i+1}.</span><div style={{flex:1}}><div style={{fontSize:13,fontWeight:500}}>{s.name}{s.is4ps&&<span style={{fontSize:10,color:"#7D6608",marginLeft:6,fontWeight:600}}>4Ps</span>}{s.transfer&&<span style={{fontSize:10,color:"#2E6B4F",marginLeft:6}}>{s.transfer}</span>}</div><div style={{fontSize:11,color:"#999"}}>LRN: {s.lrn||"—"}</div></div>
             <button onClick={()=>delSt(sg,ss,s.id)} style={{background:"none",border:"none",cursor:"pointer",color:"#c0392b"}}>{IC.trash}</button></div>)}</div>})}
         <Modal open={modal==="addSt"} onClose={()=>setModal(null)} title="Add student">
           <Inp label="Full name (Last, First, Middle)" value={f.sn||""} onChange={v=>ff("sn",v)} ph="ALEGADO, ARC FRITZ, MACASAOL"/>
           <Inp label="LRN" value={f.sl||""} onChange={v=>ff("sl",v)} ph="12-digit LRN"/>
           <div style={{marginBottom:12}}><label style={{fontSize:13,fontWeight:500,color:"#666",display:"block",marginBottom:3}}>Sex</label>
             <div style={{display:"flex",gap:8}}>{["M","F"].map(s=><button key={s} onClick={()=>ff("sx",s)} style={{padding:"7px 20px",borderRadius:8,border:f.sx===s?"2px solid #1B4D7E":"2px solid #e4e7ec",background:f.sx===s?"#1B4D7E":"#fff",color:f.sx===s?"#fff":"#333",fontWeight:600,cursor:"pointer",fontSize:13}}>{s==="M"?"Male":"Female"}</button>)}</div></div>
-          <Btn onClick={addSt} full>Add student</Btn></Modal></>)}</>);};
+          <Btn onClick={addSt} full>Add student</Btn></Modal></>)}</>)}</>);};
 
   /* ═══ SECTIONS ═══ */
   const GradesPage=()=>{
@@ -843,16 +931,112 @@ body{font-family:'Bookman Old Style','Times New Roman',Georgia,serif;font-size:1
               <Inp label="Teacher" value={f.ptt||""} onChange={v=>ff("ptt",v)} ph="Teacher name"/>
               <Btn onClick={()=>addText(dom.id,strand.code)} full color={dom.color}>Add MOV</Btn></Modal></div>})}</>)}</>);};
 
-  /* ═══ CLASS PROGRAMS ═══ */
+  /* ═══ CLASS PROGRAMS + eSF7 GENERATOR ═══ */
   const ClassProgPage=()=>{
     const addProg=(file)=>{setClassProgs(prev=>[...prev,{...file,id:uid(),teacher:f.cpt||"",grade:f.cpg||"",section:f.cps||""}]);fr();setModal(null);};
     const delProg=(idx)=>setClassProgs(prev=>prev.filter((_,i)=>i!==idx));
     const grouped={};classProgs.forEach(p=>{const k=p.teacher||"Unassigned";if(!grouped[k])grouped[k]=[];grouped[k].push(p);});
+
+    /* eSF7 PDF Generator */
+    const downloadSF7=()=>{
+      const teachers=users.filter(u=>u.role==="teacher");
+      const allSections=[];grades.forEach(g=>g.sections.forEach(s=>allSections.push({grade:g.grade,section:s.name,adviser:s.adviser,students:(s.students||[]).length,male:(s.students||[]).filter(x=>x.sex==="M").length,female:(s.students||[]).filter(x=>x.sex==="F").length})));
+      const teacherRows=teachers.map((t,i)=>{
+        const progs=classProgs.filter(p=>p.teacher===t.name);
+        const advising=allSections.filter(s=>s.adviser===t.name);
+        const gradesTaught=progs.map(p=>p.grade).filter(Boolean).join(", ")||advising.map(a=>a.grade).join(", ")||"—";
+        const sectionsTaught=progs.map(p=>p.section).filter(Boolean).join(", ")||advising.map(a=>a.section).join(", ")||"—";
+        return`<tr><td>${i+1}</td><td style="font-weight:bold">${t.name}</td><td>${t.position||"—"}</td><td>${gradesTaught}</td><td>${sectionsTaught}</td><td>${advising.length>0?"Yes":"—"}</td><td>${progs.length>0?"✓":""}</td></tr>`;
+      }).join("");
+      const summaryM=teachers.filter(t=>t.name&&(users.find(u=>u.id===t.id))).length;
+      const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>eSF7 - Tunga ES - SY ${sy}</title>
+<style>
+@page{size:13in 8.5in;margin:0.5in 0.6in;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Bookman Old Style','Times New Roman',serif;font-size:10pt;color:#000;padding:0.5in 0.6in;}
+.hdr{text-align:center;margin-bottom:8pt;}
+.hdr .r{font-family:'Old English Text MT','UnifrakturMaguntia',serif;font-size:11pt;font-weight:bold;}
+.hdr .d{font-family:'Old English Text MT','UnifrakturMaguntia',serif;font-size:16pt;font-weight:bold;}
+.hdr .rg{font-family:'Trajan Pro','Cinzel',serif;font-size:9pt;font-weight:bold;letter-spacing:1.5px;text-transform:uppercase;}
+.hdr .sc{font-family:'Trajan Pro','Cinzel',serif;font-size:10pt;font-weight:bold;letter-spacing:2px;text-transform:uppercase;margin-top:2pt;}
+.hdr .addr{font-size:8pt;color:#444;}
+.seal{width:0.7in;height:0.7in;object-fit:contain;margin:2pt auto;display:block;}
+hr{border:none;border-top:2pt solid #000;margin:4pt 0;}
+.title{font-size:13pt;font-weight:bold;text-align:center;margin:10pt 0 4pt;text-decoration:underline;}
+.subtitle{font-size:10pt;text-align:center;margin-bottom:10pt;color:#333;}
+.info{display:flex;justify-content:space-between;margin-bottom:8pt;font-size:9pt;}
+.info div{flex:1;}
+table{width:100%;border-collapse:collapse;font-size:9pt;margin-top:6pt;}
+th{background:#1B4D7E;color:#fff;padding:5pt 6pt;text-align:left;font-weight:bold;border:1pt solid #999;}
+td{padding:4pt 6pt;border:1pt solid #ccc;}
+tr:nth-child(even){background:#f5f7fa;}
+.summary{margin-top:14pt;display:flex;gap:12pt;}
+.sbox{border:1.5pt solid #1B4D7E;border-radius:6pt;padding:8pt 12pt;text-align:center;flex:1;}
+.sbox .n{font-size:18pt;font-weight:bold;color:#1B4D7E;}
+.sbox .l{font-size:8pt;color:#666;text-transform:uppercase;}
+.sig{margin-top:24pt;display:flex;justify-content:space-between;page-break-inside:avoid;}
+.sig-block{text-align:center;width:40%;}
+.sig-block .line{border-top:1pt solid #000;margin-top:30pt;padding-top:2pt;font-weight:bold;}
+.sig-block .pos{font-size:9pt;color:#333;}
+.footer{margin-top:16pt;text-align:center;font-size:8pt;color:#888;border-top:1pt solid #ddd;padding-top:4pt;}
+@media print{body{padding:0;}}
+</style></head><body>
+<div class="hdr">
+  <img src="${DEPED_SEAL}" class="seal" alt="DepEd Seal"/>
+  <div class="r">Republic of the Philippines</div>
+  <div class="d">Department of Education</div>
+  <div class="rg">Region VII — Central Visayas</div>
+  <div class="rg">Schools Division of Cebu Province</div>
+  <div class="sc">Tunga Elementary School</div>
+  <div class="addr">Tunga, Moalboal, Cebu · School ID: 119502</div>
+</div>
+<hr/>
+<div class="title">SCHOOL FORM 7 (SF7)</div>
+<div class="subtitle">School Personnel Assignment List & Basic Profile · SY ${sy}</div>
+<div class="info">
+  <div><strong>School:</strong> Tunga Elementary School</div>
+  <div><strong>School ID:</strong> 119502</div>
+  <div><strong>District:</strong> Moalboal</div>
+  <div><strong>Division:</strong> Cebu Province</div>
+</div>
+<table>
+<thead><tr><th>#</th><th>Name of Personnel</th><th>Position/Designation</th><th>Grade Level(s)</th><th>Section(s)</th><th>Advising</th><th>Class Program</th></tr></thead>
+<tbody>${teacherRows}</tbody>
+</table>
+<div class="summary">
+  <div class="sbox"><div class="n">${teachers.length}</div><div class="l">Teaching Personnel</div></div>
+  <div class="sbox"><div class="n">${users.filter(u=>u.role==="non-teaching").length}</div><div class="l">Non-Teaching</div></div>
+  <div class="sbox"><div class="n">${allSections.length}</div><div class="l">Total Sections</div></div>
+  <div class="sbox"><div class="n">${totalStudents}</div><div class="l">Total Learners</div></div>
+  <div class="sbox"><div class="n">${classProgs.length}</div><div class="l">Class Programs</div></div>
+</div>
+<div class="sig">
+  <div class="sig-block">
+    <div>Prepared by:</div>
+    <img src="${E_SIG}" style="height:40pt;object-fit:contain;margin:4pt auto;display:block;" alt=""/>
+    <div class="line">WILLIAM A. BUQUIA, Dev.Ed.D.</div>
+    <div class="pos">Principal I</div>
+  </div>
+  <div class="sig-block">
+    <div>Certified Correct:</div>
+    <div class="line" style="margin-top:60pt;">MARCELITA S. DIGNOS, Ed.D., CESO IV</div>
+    <div class="pos">Schools Division Superintendent</div>
+  </div>
+</div>
+<div class="footer">Generated from Tunga ES Management System · SY ${sy} · ${now()}</div>
+<script>window.onload=function(){setTimeout(function(){window.print();},500);}<\/script>
+</body></html>`;
+      const w=window.open("","_blank","width=1100,height=850");
+      if(w){w.document.write(html);w.document.close();}
+    };
+
     return(<><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
       <h2 style={{fontSize:20,fontWeight:700}}>Class Programs <Badge>{classProgs.length}</Badge></h2>
-      <Btn sm onClick={()=>{fr();setModal("addCP");}} color="#1B4D7E">{IC.plus} Upload</Btn></div>
+      <div style={{display:"flex",gap:6}}>
+        <Btn sm onClick={()=>{fr();setModal("addCP");}} color="#1B4D7E">{IC.plus} Upload</Btn>
+        {isAdmin&&<Btn sm color="#2E6B4F" onClick={downloadSF7}>{IC.download} eSF7 PDF</Btn>}</div></div>
       <div style={{background:"#e8f0fe",borderRadius:10,padding:10,marginBottom:14,fontSize:12,color:"#1B4D7E"}}>
-        <strong>SY {sy}</strong> — Teachers upload their class programs here. Files are tagged by teacher, grade, and section.</div>
+        <strong>SY {sy}</strong> — Upload class programs tagged by teacher, grade & section. Click <strong>"eSF7 PDF"</strong> to generate the School Personnel Assignment List from personnel + class program data.</div>
       {Object.keys(grouped).length===0&&<div style={{textAlign:"center",padding:32,color:"#ccc"}}>No class programs uploaded yet.</div>}
       {Object.entries(grouped).map(([teacher,files])=><div key={teacher} style={{background:"#fff",borderRadius:12,padding:14,marginBottom:10,borderLeft:"4px solid #1B4D7E"}}>
         <h3 style={{fontSize:15,fontWeight:700,color:"#1B4D7E",marginBottom:6}}>{teacher}</h3>
@@ -863,12 +1047,161 @@ body{font-family:'Bookman Old Style','Times New Roman',Georgia,serif;font-size:1
         <Inp label="Section" value={f.cps||""} onChange={v=>ff("cps",v)} ph="Section name"/>
         <FileUploader onUpload={addProg} accept=".pdf,.docx,.xlsx,.jpg,.jpeg,.png"/></Modal></>);};
 
+  /* ═══ DEPED FORMS (SF5→SF6, F14→F15) ═══ */
+  const DepEdFormsPage=()=>{
+    const[dfTab,setDfTab]=useState("sf5");
+    const csvRef2=useRef();const csvRef3=useRef();
+    const visibleGrades=isAdmin?grades:grades.map(g=>({...g,sections:g.sections.filter(s=>(auth.assignedSections||[]).includes(s.id))})).filter(g=>g.sections.length>0);
+    const secKey=(gi,si)=>`${grades[gi].grade}|${grades[gi].sections[si].name}`;
+
+    /* SF5 CSV Parser: Name,LRN,Sex,Average,Proficiency,Status */
+    const parseSF5=(gi,si,file)=>{const reader=new FileReader();reader.onload=(e)=>{
+      const lines=e.target.result.split("\n").map(l=>l.trim()).filter(Boolean);if(lines.length<2)return;
+      const hdr=lines[0].toLowerCase().split(",").map(h=>h.trim().replace(/"/g,""));
+      const nI=hdr.findIndex(h=>h.includes("name"));const aI=hdr.findIndex(h=>h.includes("average")||h.includes("avg")||h.includes("grade"));
+      const pI=hdr.findIndex(h=>h.includes("proficiency")||h.includes("level"));const sI=hdr.findIndex(h=>h.includes("status")||h.includes("promotion")||h.includes("action"));
+      const sexI=hdr.findIndex(h=>h.includes("sex")||h.includes("gender"));const lI=hdr.findIndex(h=>h.includes("lrn"));
+      if(nI<0){alert("CSV needs a 'Name' column");return;}
+      const recs=[];for(let i=1;i<lines.length;i++){const c=lines[i].split(",").map(x=>x.trim().replace(/"/g,""));
+        const name=c[nI]||"";if(!name)continue;
+        recs.push({name,lrn:lI>=0?c[lI]||"":"",sex:sexI>=0?(c[sexI]||"").toUpperCase().startsWith("F")?"F":"M":"M",
+          avg:aI>=0?c[aI]||"":"",proficiency:pI>=0?c[pI]||"":"",status:sI>=0?c[sI]||"":"PROMOTED"});}
+      if(!recs.length){alert("No data found");return;}
+      const k=secKey(gi,si);setSf5Data(prev=>({...prev,[k]:{grade:grades[gi].grade,section:grades[gi].sections[si].name,adviser:grades[gi].sections[si].adviser,records:recs,date:nowS()}}));
+      alert(`SF5: ${recs.length} records loaded for ${grades[gi].grade} - ${grades[gi].sections[si].name}`);
+    };reader.readAsText(file);};
+
+    /* F14 CSV Parser: Name,LRN,Sex,Jun,Jul,Aug,Sep,Oct,Nov,Dec,Jan,Feb,Mar,Apr (days absent per month) */
+    const parseF14=(gi,si,file)=>{const reader=new FileReader();reader.onload=(e)=>{
+      const lines=e.target.result.split("\n").map(l=>l.trim()).filter(Boolean);if(lines.length<2)return;
+      const hdr=lines[0].toLowerCase().split(",").map(h=>h.trim().replace(/"/g,""));
+      const nI=hdr.findIndex(h=>h.includes("name"));const sexI=hdr.findIndex(h=>h.includes("sex")||h.includes("gender"));
+      if(nI<0){alert("CSV needs a 'Name' column");return;}
+      const mos=["jun","jul","aug","sep","oct","nov","dec","jan","feb","mar","apr"];
+      const moIdx=mos.map(m=>hdr.findIndex(h=>h.includes(m)));
+      const recs=[];for(let i=1;i<lines.length;i++){const c=lines[i].split(",").map(x=>x.trim().replace(/"/g,""));
+        const name=c[nI]||"";if(!name)continue;
+        const absences={};mos.forEach((m,mi)=>{if(moIdx[mi]>=0)absences[m]=parseInt(c[moIdx[mi]])||0;else absences[m]=0;});
+        recs.push({name,sex:sexI>=0?(c[sexI]||"").toUpperCase().startsWith("F")?"F":"M":"M",absences,total:Object.values(absences).reduce((a,b)=>a+b,0)});}
+      if(!recs.length){alert("No data found");return;}
+      const k=secKey(gi,si);setF14Data(prev=>({...prev,[k]:{grade:grades[gi].grade,section:grades[gi].sections[si].name,adviser:grades[gi].sections[si].adviser,records:recs,date:nowS()}}));
+      alert(`F14: ${recs.length} records loaded`);
+    };reader.readAsText(file);};
+
+    /* SF6 PDF Generator (admin — consolidates all SF5) */
+    const genSF6=()=>{
+      const allSf5=Object.values(sf5Data);if(!allSf5.length){alert("No SF5 data uploaded yet");return;}
+      const byGrade={};allSf5.forEach(d=>{if(!byGrade[d.grade])byGrade[d.grade]={promoted:0,retained:0,total:0,m:0,f:0,sections:[]};
+        const p=d.records.filter(r=>(r.status||"").toUpperCase().includes("PROMOT")).length;
+        const ret=d.records.filter(r=>(r.status||"").toUpperCase().includes("RETAIN")).length;
+        byGrade[d.grade].promoted+=p;byGrade[d.grade].retained+=ret;byGrade[d.grade].total+=d.records.length;
+        byGrade[d.grade].m+=d.records.filter(r=>r.sex==="M").length;byGrade[d.grade].f+=d.records.filter(r=>r.sex==="F").length;
+        byGrade[d.grade].sections.push({section:d.section,adviser:d.adviser,total:d.records.length,promoted:p,retained:ret,rate:d.records.length?((p/d.records.length)*100).toFixed(1)+"%":"0%"});});
+      const gt={p:0,r:0,t:0,m:0,f:0};Object.values(byGrade).forEach(v=>{gt.p+=v.promoted;gt.r+=v.retained;gt.t+=v.total;gt.m+=v.m;gt.f+=v.f;});
+      const rows=Object.entries(byGrade).flatMap(([gr,v])=>[
+        ...v.sections.map(s=>`<tr><td>${gr}</td><td>${s.section}</td><td>${s.adviser||"—"}</td><td>${s.total}</td><td>${s.promoted}</td><td>${s.retained}</td><td>${s.total-s.promoted-s.retained}</td><td style="font-weight:700;color:#2E6B4F">${s.rate}</td></tr>`),
+        `<tr style="background:#e8f0fe;font-weight:600"><td colspan="2">${gr} Subtotal</td><td></td><td>${v.total}</td><td>${v.promoted}</td><td>${v.retained}</td><td>${v.total-v.promoted-v.retained}</td><td style="color:#1B4D7E">${v.total?((v.promoted/v.total)*100).toFixed(1)+"%":"0%"}</td></tr>`
+      ]).join("");
+      const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>SF6 - SY ${sy}</title>
+<style>@page{size:8.5in 13in;margin:0.6in;}*{margin:0;padding:0;box-sizing:border-box;}body{font-family:'Bookman Old Style',serif;font-size:10pt;padding:0.6in;}
+.hdr{text-align:center;margin-bottom:6pt;}.hdr .t{font-size:14pt;font-weight:bold;}.hdr .s{font-size:10pt;color:#333;}
+.seal{width:0.6in;height:0.6in;object-fit:contain;margin:2pt auto;display:block;}
+hr{border:none;border-top:2pt solid #000;margin:4pt 0;}
+table{width:100%;border-collapse:collapse;margin:10pt 0;}th,td{border:1pt solid #999;padding:5pt 8pt;text-align:center;font-size:9pt;}
+th{background:#1B4D7E;color:#fff;}.gt{background:#1B4D7E;color:#fff;font-weight:bold;}
+.sig{margin-top:20pt;display:flex;justify-content:space-between;page-break-inside:avoid;}
+.sig div{text-align:center;width:40%;}.sig .line{border-top:1pt solid #000;margin-top:30pt;padding-top:2pt;font-weight:bold;}
+</style></head><body>
+<div class="hdr"><img src="${DEPED_SEAL}" class="seal"/><div class="t">School Form 6 (SF6)</div>
+<div class="s">Summarization of Promotion and Level of Proficiency</div>
+<div class="s">Tunga Elementary School · School ID: 119502 · SY ${sy}</div></div><hr/>
+<table><thead><tr><th>Grade</th><th>Section</th><th>Adviser</th><th>Enrolled</th><th>Promoted</th><th>Retained</th><th>Others</th><th>Promotion Rate</th></tr></thead>
+<tbody>${rows}
+<tr class="gt"><td colspan="3">GRAND TOTAL</td><td>${gt.t}</td><td>${gt.p}</td><td>${gt.r}</td><td>${gt.t-gt.p-gt.r}</td><td>${gt.t?((gt.p/gt.t)*100).toFixed(1)+"%":"0%"}</td></tr>
+<tr class="gt"><td colspan="3">Male: ${gt.m} | Female: ${gt.f}</td><td colspan="5"></td></tr></tbody></table>
+<div class="sig"><div>Prepared by:<img src="${E_SIG}" style="height:36pt;display:block;margin:2pt auto;"/><div class="line">WILLIAM A. BUQUIA, Dev.Ed.D.</div><div>Principal I · ${now()}</div></div>
+<div>Certified Correct:<div class="line" style="margin-top:60pt;">MARCELITA S. DIGNOS, Ed.D., CESO IV</div><div>Schools Division Superintendent</div></div></div>
+<script>window.onload=function(){setTimeout(function(){window.print();},500);}<\/script></body></html>`;
+      const w=window.open("","_blank","width=850,height=1100");if(w){w.document.write(html);w.document.close();}};
+
+    /* F15 PDF Generator (admin — consolidates all F14) */
+    const genF15=()=>{
+      const allF14=Object.values(f14Data);if(!allF14.length){alert("No Form 14 data uploaded yet");return;}
+      const mos=["Jun","Jul","Aug","Sep","Oct","Nov","Dec","Jan","Feb","Mar","Apr"];
+      const byGrade={};allF14.forEach(d=>{if(!byGrade[d.grade])byGrade[d.grade]={enrolled:0,sections:[],monthly:mos.map(()=>0)};
+        const secTotal=d.records.length;byGrade[d.grade].enrolled+=secTotal;
+        const secMonthly=mos.map((_,mi)=>{const mk=mos[mi].toLowerCase().slice(0,3);return d.records.reduce((a,r)=>a+(r.absences[mk]||0),0);});
+        secMonthly.forEach((v,i)=>byGrade[d.grade].monthly[i]+=v);
+        byGrade[d.grade].sections.push({section:d.section,adviser:d.adviser,enrolled:secTotal,totalAbs:d.records.reduce((a,r)=>a+r.total,0),monthly:secMonthly});});
+      const gtEnrolled=Object.values(byGrade).reduce((a,v)=>a+v.enrolled,0);
+      const gtMonthly=mos.map((_,i)=>Object.values(byGrade).reduce((a,v)=>a+v.monthly[i],0));
+      const gtAbs=gtMonthly.reduce((a,b)=>a+b,0);
+      const rows=Object.entries(byGrade).flatMap(([gr,v])=>v.sections.map(s=>
+        `<tr><td>${gr}</td><td>${s.section}</td><td>${s.adviser||"—"}</td><td>${s.enrolled}</td>${s.monthly.map(m=>`<td>${m||""}</td>`).join("")}<td style="font-weight:700">${s.totalAbs}</td></tr>`)).join("");
+      const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Form 15 - SY ${sy}</title>
+<style>@page{size:13in 8.5in;margin:0.4in;}*{margin:0;padding:0;box-sizing:border-box;}body{font-family:'Bookman Old Style',serif;font-size:9pt;padding:0.4in;}
+.hdr{text-align:center;margin-bottom:6pt;}.hdr .t{font-size:13pt;font-weight:bold;}.hdr .s{font-size:9pt;color:#333;}
+.seal{width:0.5in;height:0.5in;object-fit:contain;margin:2pt auto;display:block;}
+hr{border:none;border-top:2pt solid #000;margin:4pt 0;}
+table{width:100%;border-collapse:collapse;margin:8pt 0;}th,td{border:1pt solid #999;padding:3pt 5pt;text-align:center;font-size:8pt;}
+th{background:#1B4D7E;color:#fff;font-size:7pt;}.gt{background:#1B4D7E;color:#fff;font-weight:bold;}
+.sig{margin-top:14pt;display:flex;justify-content:space-between;font-size:9pt;}
+.sig div{text-align:center;width:35%;}.sig .line{border-top:1pt solid #000;margin-top:28pt;padding-top:2pt;font-weight:bold;}
+</style></head><body>
+<div class="hdr"><img src="${DEPED_SEAL}" class="seal"/><div class="t">Form 15 — Summary of Learner's Attendance</div>
+<div class="s">Tunga Elementary School · 119502 · SY ${sy}</div></div><hr/>
+<table><thead><tr><th>Grade</th><th>Section</th><th>Adviser</th><th>Enrolled</th>${mos.map(m=>`<th>${m}</th>`).join("")}<th>Total Abs</th></tr></thead>
+<tbody>${rows}
+<tr class="gt"><td colspan="3">GRAND TOTAL</td><td>${gtEnrolled}</td>${gtMonthly.map(m=>`<td>${m}</td>`).join("")}<td>${gtAbs}</td></tr></tbody></table>
+<div class="sig"><div>Prepared by:<img src="${E_SIG}" style="height:30pt;display:block;margin:2pt auto;"/><div class="line">WILLIAM A. BUQUIA, Dev.Ed.D.</div><div>Principal I · ${now()}</div></div>
+<div>Certified Correct:<div class="line" style="margin-top:50pt;">MARCELITA S. DIGNOS, Ed.D., CESO IV</div><div>Schools Division Superintendent</div></div></div>
+<script>window.onload=function(){setTimeout(function(){window.print();},500);}<\/script></body></html>`;
+      const w=window.open("","_blank","width=1100,height=850");if(w){w.document.write(html);w.document.close();}};
+
+    const sf5Count=Object.keys(sf5Data).length;const f14Count=Object.keys(f14Data).length;
+
+    return(<><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+      <h2 style={{fontSize:20,fontWeight:700}}>DepEd School Forms</h2>
+      <div style={{display:"flex",gap:4}}>{[{t:"sf5",l:"SF5 → SF6"},{t:"f14",l:"F14 → F15"}].map(x=><button key={x.t} onClick={()=>setDfTab(x.t)}
+        style={{padding:"6px 14px",borderRadius:8,border:dfTab===x.t?"2px solid #1B4D7E":"2px solid #e4e7ec",background:dfTab===x.t?"#1B4D7E":"#fff",color:dfTab===x.t?"#fff":"#333",fontWeight:600,cursor:"pointer",fontSize:12,fontFamily:"inherit"}}>{x.l}</button>)}</div></div>
+
+      {/* ── SF5 TAB ── */}
+      {dfTab==="sf5"&&(<>
+        <div style={{background:"#e8f0fe",borderRadius:10,padding:12,marginBottom:14,fontSize:12,color:"#1B4D7E"}}>
+          <strong>SF5 — Report on Promotion</strong> · Upload CSV per section (Name, LRN, Sex, Average, Proficiency, Status).
+          {isAdmin&&<><br/><strong>SF6</strong> auto-generates from all uploaded SF5 data (admin only).</>}</div>
+        {isAdmin&&sf5Count>0&&<div style={{marginBottom:12}}><Btn color="#2E6B4F" onClick={genSF6}>{IC.download} Generate SF6 PDF (from {sf5Count} sections)</Btn></div>}
+        {visibleGrades.map((g,gi)=>{const realGi=grades.findIndex(x=>x.grade===g.grade);return<div key={gi} style={{background:"#fff",borderRadius:12,padding:14,marginBottom:10}}>
+          <h3 style={{fontSize:15,fontWeight:600,color:"#1B4D7E",marginBottom:8}}>{g.grade}</h3>
+          {g.sections.map((s,si)=>{const realSi=grades[realGi].sections.findIndex(x=>x.id===s.id);const k=secKey(realGi,realSi);const d=sf5Data[k];
+            return<div key={si} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 12px",background:d?"#eafaf1":"#f9f9fb",borderRadius:8,marginBottom:4,border:`1px solid ${d?"#2E6B4F":"#e4e7ec"}`}}>
+              <div style={{flex:1}}><div style={{fontWeight:600,fontSize:14}}>{s.name}</div><div style={{fontSize:11,color:"#888"}}>Adviser: {s.adviser||"—"}</div>
+                {d&&<div style={{fontSize:11,color:"#2E6B4F",marginTop:2}}>✓ {d.records.length} records · Promoted: {d.records.filter(r=>(r.status||"").toUpperCase().includes("PROMOT")).length} · {d.date}</div>}</div>
+              <input ref={csvRef2} type="file" accept=".csv" hidden onChange={e=>{if(e.target.files[0])parseSF5(realGi,realSi,e.target.files[0]);e.target.value="";}}/>
+              <Btn sm color={d?"#2E6B4F":"#1B4D7E"} onClick={()=>csvRef2.current?.click()}>{IC.upload} {d?"Update":"Upload"} SF5</Btn></div>})}</div>})}</>)}
+
+      {/* ── F14 TAB ── */}
+      {dfTab==="f14"&&(<>
+        <div style={{background:"#fef9e7",borderRadius:10,padding:12,marginBottom:14,fontSize:12,color:"#7D6608"}}>
+          <strong>Form 14 — Individual Learner's Attendance</strong> · Upload CSV per section (Name, Sex, Jun, Jul, Aug, Sep, Oct, Nov, Dec, Jan, Feb, Mar, Apr — days absent per month).
+          {isAdmin&&<><br/><strong>Form 15</strong> auto-generates school summary from all F14 data (admin only).</>}</div>
+        {isAdmin&&f14Count>0&&<div style={{marginBottom:12}}><Btn color="#7D6608" onClick={genF15}>{IC.download} Generate Form 15 PDF (from {f14Count} sections)</Btn></div>}
+        {visibleGrades.map((g,gi)=>{const realGi=grades.findIndex(x=>x.grade===g.grade);return<div key={gi} style={{background:"#fff",borderRadius:12,padding:14,marginBottom:10}}>
+          <h3 style={{fontSize:15,fontWeight:600,color:"#7D6608",marginBottom:8}}>{g.grade}</h3>
+          {g.sections.map((s,si)=>{const realSi=grades[realGi].sections.findIndex(x=>x.id===s.id);const k=secKey(realGi,realSi);const d=f14Data[k];
+            return<div key={si} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 12px",background:d?"#fef9e7":"#f9f9fb",borderRadius:8,marginBottom:4,border:`1px solid ${d?"#7D6608":"#e4e7ec"}`}}>
+              <div style={{flex:1}}><div style={{fontWeight:600,fontSize:14}}>{s.name}</div><div style={{fontSize:11,color:"#888"}}>Adviser: {s.adviser||"—"}</div>
+                {d&&<div style={{fontSize:11,color:"#7D6608",marginTop:2}}>✓ {d.records.length} records · Total absences: {d.records.reduce((a,r)=>a+r.total,0)} · {d.date}</div>}</div>
+              <input ref={csvRef3} type="file" accept=".csv" hidden onChange={e=>{if(e.target.files[0])parseF14(realGi,realSi,e.target.files[0]);e.target.value="";}}/>
+              <Btn sm color={d?"#7D6608":"#5B2C6F"} onClick={()=>csvRef3.current?.click()}>{IC.upload} {d?"Update":"Upload"} F14</Btn></div>})}</div>})}</>)}
+    </>);};
+
   /* ═══ RENDER ═══ */
   const pages={home:<HomePage/>,students:<StudentsPage/>,grades:<GradesPage/>,personnel:<PersonnelPage/>,coordinators:<CoordsPage/>,
     announcements:<ListPage title="Announcements" items={announcements} setItems={setAnnouncements} withSig={true} fields={[{key:"title",label:"Title",ph:"Title"},{key:"body",label:"Details",ph:"Details...",ta:true}]}/>,
     memos:<MemosPage/>,
     bulletins:<ListPage title="Bulletins" items={bulletins} setItems={setBulletins} fields={[{key:"title",label:"Title",ph:"Title"},{key:"body",label:"Content",ph:"Content...",ta:true}]}/>,
-    mooe:<MooePage/>,reports:<ReportsPage/>,ppssh:<PPSSHPage/>,tmov:<TmovPage/>,ppst:<PPSTPage/>,classprog:<ClassProgPage/>,co_schedule:<COPage/>,forms:<FormsPage/>};
+    mooe:<MooePage/>,reports:<ReportsPage/>,ppssh:<PPSSHPage/>,tmov:<TmovPage/>,ppst:<PPSTPage/>,classprog:<ClassProgPage/>,depedforms:<DepEdFormsPage/>,co_schedule:<COPage/>,forms:<FormsPage/>};
 
   return(
     <div style={{display:"flex",minHeight:"100vh",fontFamily:"'Segoe UI',system-ui,sans-serif",background:"#f4f6f8"}}>
