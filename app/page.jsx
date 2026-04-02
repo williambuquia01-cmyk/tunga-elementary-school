@@ -256,6 +256,7 @@ export default function App(){
   const[classProgs,setClassProgs]=useStore(`cprog3_${sy}`,[]);
   const[sf5Data,setSf5Data]=useStore(`sf5_${sy}`,{});
   const[f14Data,setF14Data]=useStore(`f14_${sy}`,{});
+  const[sfFiles,setSfFiles]=useStore(`sfFiles_${sy}`,{});
 
   if(!auth) return <LoginPage onLogin={setAuth} users={users}/>;
 
@@ -1047,153 +1048,114 @@ tr:nth-child(even){background:#f5f7fa;}
         <Inp label="Section" value={f.cps||""} onChange={v=>ff("cps",v)} ph="Section name"/>
         <FileUploader onUpload={addProg} accept=".pdf,.docx,.xlsx,.jpg,.jpeg,.png"/></Modal></>);};
 
-  /* ═══ DEPED FORMS (SF5→SF6, F14→F15) ═══ */
+  /* ═══ DEPED FORMS — ALL 7 FORMS (SF1-SF6, F14-F15) ═══ */
   const DepEdFormsPage=()=>{
-    const[dfTab,setDfTab]=useState("sf5");
-    const csvRef2=useRef();const csvRef3=useRef();
-    const visibleGrades=isAdmin?grades:grades.map(g=>({...g,sections:g.sections.filter(s=>(auth.assignedSections||[]).includes(s.id))})).filter(g=>g.sections.length>0);
-    const secKey=(gi,si)=>`${grades[gi].grade}|${grades[gi].sections[si].name}`;
+    const FORMS=["SF1","SF2","SF4","SF5","SF6","F14","F15"];
+    const FORM_INFO={SF1:{color:"#1B4D7E",desc:"School Register / Learner List",csv:true,csvHint:"Name, LRN, Sex, 4Ps, Transfer"},
+      SF2:{color:"#2E6B4F",desc:"Daily Attendance Report",autoGen:true,autoLabel:"Auto-generate PDF from SF1 student data"},
+      SF4:{color:"#7B3F00",desc:"Monthly Learner Movement & Attendance",autoGen:true,autoLabel:"Auto-generate PDF from SF1 student data"},
+      SF5:{color:"#5B2C6F",desc:"Report on Promotion & Proficiency",csv:true,csvHint:"Name, LRN, Sex, Average, Proficiency, Status"},
+      SF6:{color:"#943126",desc:"Summarization of Promotion (school-wide)",adminGen:true,adminLabel:"Admin: Generate consolidated PDF from all SF5"},
+      F14:{color:"#7D6608",desc:"Individual Learner Attendance Record",csv:true,csvHint:"Name, Sex, Jun, Jul, Aug, Sep, Oct, Nov, Dec, Jan, Feb, Mar, Apr"},
+      F15:{color:"#1A5276",desc:"Summary of Attendance (school-wide)",adminGen:true,adminLabel:"Admin: Generate consolidated PDF from all F14"}};
+    const[dfTab,setDfTab]=useState("SF1");
+    const csvRef2=useRef();const csvRef3=useRef();const csvRef4=useRef();
+    const visGrades=isAdmin?grades:grades.map(g=>({...g,sections:g.sections.filter(s=>(auth.assignedSections||[]).includes(s.id))})).filter(g=>g.sections.length>0);
+    const fKey=(fm,gi,si)=>`${fm}|${grades[gi].grade}|${grades[gi].sections[si].name}`;
+    const sKey=(gi,si)=>`${grades[gi].grade}|${grades[gi].sections[si].name}`;
+    const addFF=(fm,gi,si,file)=>{const k=fKey(fm,gi,si);setSfFiles(prev=>({...prev,[k]:[...(prev[k]||[]),{...file,id:uid(),uploadedBy:auth.name}]}));};
+    const delFF=(fm,gi,si,idx)=>{const k=fKey(fm,gi,si);setSfFiles(prev=>({...prev,[k]:(prev[k]||[]).filter((_,i)=>i!==idx)}));};
+    const ffc=(fm)=>Object.keys(sfFiles).filter(k=>k.startsWith(fm+"|")).reduce((a,k)=>a+(sfFiles[k]||[]).length,0);
+    /* SF1 CSV */
+    const pSF1=(gi,si,file)=>{const rd=new FileReader();rd.onload=(e)=>{const ls=e.target.result.split("\n").map(l=>l.trim()).filter(Boolean);if(ls.length<2)return;
+      const h=ls[0].toLowerCase().split(",").map(x=>x.trim().replace(/"/g,""));const nI=h.findIndex(x=>x.includes("name")||x.includes("learner"));
+      const lI=h.findIndex(x=>x.includes("lrn"));const sI=h.findIndex(x=>x.includes("sex")||x.includes("gender"));
+      const fI=h.findIndex(x=>x.includes("4ps")||x.includes("pantawid"));const tI=h.findIndex(x=>x.includes("transfer")||x.includes("trans"));
+      if(nI<0){alert("CSV needs Name column");return;}const ns=[];
+      for(let i=1;i<ls.length;i++){const c=ls[i].split(",").map(x=>x.trim().replace(/"/g,""));if(!(c[nI]||"").trim())continue;
+        ns.push({id:uid(),name:c[nI],lrn:lI>=0?c[lI]||"":"",sex:sI>=0?(c[sI]||"").toUpperCase().startsWith("F")?"F":"M":"M",
+          is4ps:fI>=0?["yes","y","true","1","4ps"].includes((c[fI]||"").toLowerCase()):false,transfer:tI>=0?c[tI]||"":""});}
+      if(!ns.length){alert("No students");return;}setGrades(prev=>prev.map((g,i)=>i===gi?{...g,sections:g.sections.map((s,j)=>j===si?{...s,students:[...(s.students||[]),...ns]}:s)}:g));
+      alert(`SF1: ${ns.length} students imported!`);};rd.readAsText(file);};
+    /* SF5 CSV */
+    const pSF5=(gi,si,file)=>{const rd=new FileReader();rd.onload=(e)=>{const ls=e.target.result.split("\n").map(l=>l.trim()).filter(Boolean);if(ls.length<2)return;
+      const h=ls[0].toLowerCase().split(",").map(x=>x.trim().replace(/"/g,""));const nI=h.findIndex(x=>x.includes("name"));
+      const aI=h.findIndex(x=>x.includes("average")||x.includes("avg"));const pI=h.findIndex(x=>x.includes("proficiency")||x.includes("level"));
+      const stI=h.findIndex(x=>x.includes("status")||x.includes("promotion"));const sI=h.findIndex(x=>x.includes("sex"));
+      if(nI<0){alert("CSV needs Name column");return;}const rs=[];
+      for(let i=1;i<ls.length;i++){const c=ls[i].split(",").map(x=>x.trim().replace(/"/g,""));if(!(c[nI]||"").trim())continue;
+        rs.push({name:c[nI],sex:sI>=0?(c[sI]||"").toUpperCase().startsWith("F")?"F":"M":"M",avg:aI>=0?c[aI]||"":"",proficiency:pI>=0?c[pI]||"":"",status:stI>=0?c[stI]||"":"PROMOTED"});}
+      if(!rs.length){alert("No data");return;}const k=sKey(gi,si);
+      setSf5Data(prev=>({...prev,[k]:{grade:grades[gi].grade,section:grades[gi].sections[si].name,adviser:grades[gi].sections[si].adviser,records:rs,date:nowS()}}));
+      alert(`SF5: ${rs.length} records`);};rd.readAsText(file);};
+    /* F14 CSV */
+    const pF14=(gi,si,file)=>{const rd=new FileReader();rd.onload=(e)=>{const ls=e.target.result.split("\n").map(l=>l.trim()).filter(Boolean);if(ls.length<2)return;
+      const h=ls[0].toLowerCase().split(",").map(x=>x.trim().replace(/"/g,""));const nI=h.findIndex(x=>x.includes("name"));const sI=h.findIndex(x=>x.includes("sex"));
+      if(nI<0){alert("CSV needs Name column");return;}const mos=["jun","jul","aug","sep","oct","nov","dec","jan","feb","mar","apr"];
+      const mI=mos.map(m=>h.findIndex(x=>x.includes(m)));const rs=[];
+      for(let i=1;i<ls.length;i++){const c=ls[i].split(",").map(x=>x.trim().replace(/"/g,""));if(!(c[nI]||"").trim())continue;
+        const ab={};mos.forEach((m,mi)=>{ab[m]=mI[mi]>=0?parseInt(c[mI[mi]])||0:0;});
+        rs.push({name:c[nI],sex:sI>=0?(c[sI]||"").toUpperCase().startsWith("F")?"F":"M":"M",absences:ab,total:Object.values(ab).reduce((a,b)=>a+b,0)});}
+      if(!rs.length){alert("No data");return;}const k=sKey(gi,si);
+      setF14Data(prev=>({...prev,[k]:{grade:grades[gi].grade,section:grades[gi].sections[si].name,adviser:grades[gi].sections[si].adviser,records:rs,date:nowS()}}));
+      alert(`F14: ${rs.length} records`);};rd.readAsText(file);};
+    /* SF2 PDF */
+    const gSF2=(gi,si)=>{const g=grades[gi],s=g.sections[si],st=s.students||[];if(!st.length){alert("No students (upload SF1 first)");return;}
+      const d=Array.from({length:22},(_,i)=>i+1);const r=st.map((x,i)=>`<tr><td>${i+1}</td><td>${x.lrn||""}</td><td style="text-align:left">${x.name}</td><td>${x.sex}</td>${d.map(()=>"<td></td>").join("")}<td></td></tr>`).join("");
+      const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>SF2</title><style>@page{size:13in 8.5in;margin:.4in;}*{margin:0;padding:0;box-sizing:border-box;}body{font-family:Calibri,sans-serif;font-size:8pt;padding:.4in;}.hdr{text-align:center;margin-bottom:6pt;}.hdr .t{font-size:11pt;font-weight:bold;}table{width:100%;border-collapse:collapse;}th,td{border:1pt solid #999;padding:2pt 3pt;text-align:center;font-size:7pt;}th{background:#1B4D7E;color:#fff;}.sig{margin-top:10pt;display:flex;justify-content:space-between;font-size:9pt;}.sig div{text-align:center;width:35%;}.sig .line{border-top:1pt solid #000;margin-top:28pt;padding-top:2pt;font-weight:bold;}</style></head><body><div class="hdr"><img src="${DEPED_SEAL}" style="width:.5in;height:.5in;"/><div class="t">SF2 — Daily Attendance</div><div>Tunga ES · ${g.grade} - ${s.name} · SY ${sy} · Month: ________</div></div><table><thead><tr><th>#</th><th>LRN</th><th style="text-align:left">Name</th><th>Sex</th>${d.map(x=>`<th>${x}</th>`).join("")}<th>Abs</th></tr></thead><tbody>${r}<tr style="font-weight:bold;background:#e8f0fe"><td colspan="3">TOTAL (M:${st.filter(x=>x.sex==="M").length} F:${st.filter(x=>x.sex==="F").length})</td><td>${st.length}</td>${d.map(()=>"<td></td>").join("")}<td></td></tr></tbody></table><div class="sig"><div>Prepared by:<div class="line">${s.adviser||"___"}</div><div>Adviser</div></div><div>Certified:<img src="${E_SIG}" style="height:30pt;display:block;margin:2pt auto;"/><div class="line">WILLIAM A. BUQUIA, Dev.Ed.D.</div><div>Principal I</div></div></div><script>window.onload=function(){setTimeout(function(){window.print();},500);}<\/script></body></html>`;
+      const w=window.open("","_blank");if(w){w.document.write(html);w.document.close();}};
+    /* SF4 PDF */
+    const gSF4=(gi,si)=>{const g=grades[gi],s=g.sections[si],st=s.students||[];if(!st.length){alert("No students");return;}
+      const m=st.filter(x=>x.sex==="M").length,fe=st.length-m,fp=st.filter(x=>x.is4ps).length;
+      const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>SF4</title><style>@page{size:8.5in 13in;margin:.6in;}*{margin:0;padding:0;box-sizing:border-box;}body{font-family:'Bookman Old Style',serif;font-size:10pt;padding:.6in;}.hdr{text-align:center;margin-bottom:8pt;}.hdr .t{font-size:13pt;font-weight:bold;}table{width:100%;border-collapse:collapse;margin:10pt 0;}th,td{border:1pt solid #999;padding:4pt 6pt;text-align:center;}th{background:#7B3F00;color:#fff;font-size:9pt;}.sig{margin-top:20pt;display:flex;justify-content:space-between;}.sig div{text-align:center;width:40%;}.sig .line{border-top:1pt solid #000;margin-top:30pt;padding-top:2pt;font-weight:bold;}</style></head><body><div class="hdr"><img src="${DEPED_SEAL}" style="width:.6in;height:.6in;"/><div class="t">SF4 — Monthly Learner Movement</div><div>Tunga ES · ${g.grade} - ${s.name} · SY ${sy}</div></div><table><thead><tr><th>Month</th><th>Enrolled</th><th>M</th><th>F</th><th>Trans-In</th><th>Trans-Out</th><th>Dropout</th><th>Remarks</th></tr></thead><tbody>${["Jun","Jul","Aug","Sep","Oct","Nov","Dec","Jan","Feb","Mar"].map(mo=>`<tr><td>${mo}</td><td>${st.length}</td><td>${m}</td><td>${fe}</td><td></td><td></td><td></td><td></td></tr>`).join("")}</tbody></table><div style="background:#7B3F00;color:#fff;padding:6pt;border-radius:4pt;text-align:center;font-weight:700">Total: ${st.length} | M: ${m} | F: ${fe} | 4Ps: ${fp}</div><div class="sig"><div>Prepared by:<div class="line">${s.adviser||"___"}</div><div>Adviser</div></div><div>Certified:<img src="${E_SIG}" style="height:36pt;display:block;margin:2pt auto;"/><div class="line">WILLIAM A. BUQUIA, Dev.Ed.D.</div><div>Principal I</div></div></div><script>window.onload=function(){setTimeout(function(){window.print();},500);}<\/script></body></html>`;
+      const w=window.open("","_blank");if(w){w.document.write(html);w.document.close();}};
+    /* SF6 PDF (admin) */
+    const gSF6=()=>{const all=Object.values(sf5Data);if(!all.length){alert("No SF5 data");return;}const byG={};all.forEach(d=>{if(!byG[d.grade])byG[d.grade]={p:0,r:0,t:0,secs:[]};const p=d.records.filter(r=>(r.status||"").toUpperCase().includes("PROMOT")).length;const rt=d.records.filter(r=>(r.status||"").toUpperCase().includes("RETAIN")).length;byG[d.grade].p+=p;byG[d.grade].r+=rt;byG[d.grade].t+=d.records.length;byG[d.grade].secs.push({s:d.section,a:d.adviser,t:d.records.length,p,r:rt});});
+      const gt={p:0,r:0,t:0};Object.values(byG).forEach(v=>{gt.p+=v.p;gt.r+=v.r;gt.t+=v.t;});
+      const rows=Object.entries(byG).flatMap(([gr,v])=>v.secs.map(s=>`<tr><td>${gr}</td><td>${s.s}</td><td>${s.a||"—"}</td><td>${s.t}</td><td>${s.p}</td><td>${s.r}</td><td>${s.t-s.p-s.r}</td><td style="font-weight:700;color:#2E6B4F">${s.t?((s.p/s.t)*100).toFixed(1)+"%":"0%"}</td></tr>`)).join("");
+      const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>SF6</title><style>@page{size:8.5in 13in;margin:.6in;}*{margin:0;padding:0;box-sizing:border-box;}body{font-family:'Bookman Old Style',serif;font-size:10pt;padding:.6in;}.hdr{text-align:center;margin-bottom:6pt;}.hdr .t{font-size:14pt;font-weight:bold;}hr{border:none;border-top:2pt solid #000;margin:4pt 0;}table{width:100%;border-collapse:collapse;margin:10pt 0;}th,td{border:1pt solid #999;padding:5pt 8pt;text-align:center;font-size:9pt;}th{background:#943126;color:#fff;}.gt{background:#943126;color:#fff;font-weight:bold;}.sig{margin-top:20pt;display:flex;justify-content:space-between;}.sig div{text-align:center;width:40%;}.sig .line{border-top:1pt solid #000;margin-top:30pt;padding-top:2pt;font-weight:bold;}</style></head><body><div class="hdr"><img src="${DEPED_SEAL}" style="width:.6in;height:.6in;"/><div class="t">SF6 — Summarization of Promotion</div><div>Tunga ES · 119502 · SY ${sy}</div></div><hr/><table><thead><tr><th>Grade</th><th>Section</th><th>Adviser</th><th>Enrolled</th><th>Promoted</th><th>Retained</th><th>Others</th><th>Rate</th></tr></thead><tbody>${rows}<tr class="gt"><td colspan="3">TOTAL</td><td>${gt.t}</td><td>${gt.p}</td><td>${gt.r}</td><td>${gt.t-gt.p-gt.r}</td><td>${gt.t?((gt.p/gt.t)*100).toFixed(1)+"%":"0%"}</td></tr></tbody></table><div class="sig"><div>Prepared by:<img src="${E_SIG}" style="height:36pt;display:block;margin:2pt auto;"/><div class="line">WILLIAM A. BUQUIA, Dev.Ed.D.</div><div>Principal I · ${now()}</div></div><div>Certified:<div class="line" style="margin-top:60pt;">MARCELITA S. DIGNOS, Ed.D., CESO IV</div><div>SDS</div></div></div><script>window.onload=function(){setTimeout(function(){window.print();},500);}<\/script></body></html>`;
+      const w=window.open("","_blank");if(w){w.document.write(html);w.document.close();}};
+    /* F15 PDF (admin) */
+    const gF15=()=>{const all=Object.values(f14Data);if(!all.length){alert("No F14 data");return;}const mos=["Jun","Jul","Aug","Sep","Oct","Nov","Dec","Jan","Feb","Mar","Apr"];
+      const rows=all.map(d=>{const mt=mos.map((_,mi)=>{const mk=mos[mi].toLowerCase().slice(0,3);return d.records.reduce((a,r)=>a+(r.absences[mk]||0),0);});
+        return`<tr><td>${d.grade}</td><td>${d.section}</td><td>${d.adviser||"—"}</td><td>${d.records.length}</td>${mt.map(m=>`<td>${m||""}</td>`).join("")}<td style="font-weight:700">${d.records.reduce((a,r)=>a+r.total,0)}</td></tr>`;}).join("");
+      const gtE=all.reduce((a,d)=>a+d.records.length,0);const gtA=all.reduce((a,d)=>a+d.records.reduce((b,r)=>b+r.total,0),0);
+      const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Form 15</title><style>@page{size:13in 8.5in;margin:.4in;}*{margin:0;padding:0;box-sizing:border-box;}body{font-family:'Bookman Old Style',serif;font-size:9pt;padding:.4in;}.hdr{text-align:center;margin-bottom:6pt;}.hdr .t{font-size:13pt;font-weight:bold;}hr{border:none;border-top:2pt solid #000;margin:4pt 0;}table{width:100%;border-collapse:collapse;margin:8pt 0;}th,td{border:1pt solid #999;padding:3pt 5pt;text-align:center;font-size:8pt;}th{background:#1A5276;color:#fff;}.gt{background:#1A5276;color:#fff;font-weight:bold;}.sig{margin-top:14pt;display:flex;justify-content:space-between;font-size:9pt;}.sig div{text-align:center;width:35%;}.sig .line{border-top:1pt solid #000;margin-top:28pt;padding-top:2pt;font-weight:bold;}</style></head><body><div class="hdr"><img src="${DEPED_SEAL}" style="width:.5in;height:.5in;"/><div class="t">Form 15 — Summary of Attendance</div><div>Tunga ES · 119502 · SY ${sy}</div></div><hr/><table><thead><tr><th>Grade</th><th>Section</th><th>Adviser</th><th>Enrolled</th>${mos.map(m=>`<th>${m}</th>`).join("")}<th>Total</th></tr></thead><tbody>${rows}<tr class="gt"><td colspan="3">TOTAL</td><td>${gtE}</td>${mos.map(()=>"<td></td>").join("")}<td>${gtA}</td></tr></tbody></table><div class="sig"><div>Prepared by:<img src="${E_SIG}" style="height:30pt;display:block;margin:2pt auto;"/><div class="line">WILLIAM A. BUQUIA, Dev.Ed.D.</div><div>Principal I · ${now()}</div></div><div>Certified:<div class="line" style="margin-top:50pt;">MARCELITA S. DIGNOS, Ed.D., CESO IV</div><div>SDS</div></div></div><script>window.onload=function(){setTimeout(function(){window.print();},500);}<\/script></body></html>`;
+      const w=window.open("","_blank");if(w){w.document.write(html);w.document.close();}};
 
-    /* SF5 CSV Parser: Name,LRN,Sex,Average,Proficiency,Status */
-    const parseSF5=(gi,si,file)=>{const reader=new FileReader();reader.onload=(e)=>{
-      const lines=e.target.result.split("\n").map(l=>l.trim()).filter(Boolean);if(lines.length<2)return;
-      const hdr=lines[0].toLowerCase().split(",").map(h=>h.trim().replace(/"/g,""));
-      const nI=hdr.findIndex(h=>h.includes("name"));const aI=hdr.findIndex(h=>h.includes("average")||h.includes("avg")||h.includes("grade"));
-      const pI=hdr.findIndex(h=>h.includes("proficiency")||h.includes("level"));const sI=hdr.findIndex(h=>h.includes("status")||h.includes("promotion")||h.includes("action"));
-      const sexI=hdr.findIndex(h=>h.includes("sex")||h.includes("gender"));const lI=hdr.findIndex(h=>h.includes("lrn"));
-      if(nI<0){alert("CSV needs a 'Name' column");return;}
-      const recs=[];for(let i=1;i<lines.length;i++){const c=lines[i].split(",").map(x=>x.trim().replace(/"/g,""));
-        const name=c[nI]||"";if(!name)continue;
-        recs.push({name,lrn:lI>=0?c[lI]||"":"",sex:sexI>=0?(c[sexI]||"").toUpperCase().startsWith("F")?"F":"M":"M",
-          avg:aI>=0?c[aI]||"":"",proficiency:pI>=0?c[pI]||"":"",status:sI>=0?c[sI]||"":"PROMOTED"});}
-      if(!recs.length){alert("No data found");return;}
-      const k=secKey(gi,si);setSf5Data(prev=>({...prev,[k]:{grade:grades[gi].grade,section:grades[gi].sections[si].name,adviser:grades[gi].sections[si].adviser,records:recs,date:nowS()}}));
-      alert(`SF5: ${recs.length} records loaded for ${grades[gi].grade} - ${grades[gi].sections[si].name}`);
-    };reader.readAsText(file);};
-
-    /* F14 CSV Parser: Name,LRN,Sex,Jun,Jul,Aug,Sep,Oct,Nov,Dec,Jan,Feb,Mar,Apr (days absent per month) */
-    const parseF14=(gi,si,file)=>{const reader=new FileReader();reader.onload=(e)=>{
-      const lines=e.target.result.split("\n").map(l=>l.trim()).filter(Boolean);if(lines.length<2)return;
-      const hdr=lines[0].toLowerCase().split(",").map(h=>h.trim().replace(/"/g,""));
-      const nI=hdr.findIndex(h=>h.includes("name"));const sexI=hdr.findIndex(h=>h.includes("sex")||h.includes("gender"));
-      if(nI<0){alert("CSV needs a 'Name' column");return;}
-      const mos=["jun","jul","aug","sep","oct","nov","dec","jan","feb","mar","apr"];
-      const moIdx=mos.map(m=>hdr.findIndex(h=>h.includes(m)));
-      const recs=[];for(let i=1;i<lines.length;i++){const c=lines[i].split(",").map(x=>x.trim().replace(/"/g,""));
-        const name=c[nI]||"";if(!name)continue;
-        const absences={};mos.forEach((m,mi)=>{if(moIdx[mi]>=0)absences[m]=parseInt(c[moIdx[mi]])||0;else absences[m]=0;});
-        recs.push({name,sex:sexI>=0?(c[sexI]||"").toUpperCase().startsWith("F")?"F":"M":"M",absences,total:Object.values(absences).reduce((a,b)=>a+b,0)});}
-      if(!recs.length){alert("No data found");return;}
-      const k=secKey(gi,si);setF14Data(prev=>({...prev,[k]:{grade:grades[gi].grade,section:grades[gi].sections[si].name,adviser:grades[gi].sections[si].adviser,records:recs,date:nowS()}}));
-      alert(`F14: ${recs.length} records loaded`);
-    };reader.readAsText(file);};
-
-    /* SF6 PDF Generator (admin — consolidates all SF5) */
-    const genSF6=()=>{
-      const allSf5=Object.values(sf5Data);if(!allSf5.length){alert("No SF5 data uploaded yet");return;}
-      const byGrade={};allSf5.forEach(d=>{if(!byGrade[d.grade])byGrade[d.grade]={promoted:0,retained:0,total:0,m:0,f:0,sections:[]};
-        const p=d.records.filter(r=>(r.status||"").toUpperCase().includes("PROMOT")).length;
-        const ret=d.records.filter(r=>(r.status||"").toUpperCase().includes("RETAIN")).length;
-        byGrade[d.grade].promoted+=p;byGrade[d.grade].retained+=ret;byGrade[d.grade].total+=d.records.length;
-        byGrade[d.grade].m+=d.records.filter(r=>r.sex==="M").length;byGrade[d.grade].f+=d.records.filter(r=>r.sex==="F").length;
-        byGrade[d.grade].sections.push({section:d.section,adviser:d.adviser,total:d.records.length,promoted:p,retained:ret,rate:d.records.length?((p/d.records.length)*100).toFixed(1)+"%":"0%"});});
-      const gt={p:0,r:0,t:0,m:0,f:0};Object.values(byGrade).forEach(v=>{gt.p+=v.promoted;gt.r+=v.retained;gt.t+=v.total;gt.m+=v.m;gt.f+=v.f;});
-      const rows=Object.entries(byGrade).flatMap(([gr,v])=>[
-        ...v.sections.map(s=>`<tr><td>${gr}</td><td>${s.section}</td><td>${s.adviser||"—"}</td><td>${s.total}</td><td>${s.promoted}</td><td>${s.retained}</td><td>${s.total-s.promoted-s.retained}</td><td style="font-weight:700;color:#2E6B4F">${s.rate}</td></tr>`),
-        `<tr style="background:#e8f0fe;font-weight:600"><td colspan="2">${gr} Subtotal</td><td></td><td>${v.total}</td><td>${v.promoted}</td><td>${v.retained}</td><td>${v.total-v.promoted-v.retained}</td><td style="color:#1B4D7E">${v.total?((v.promoted/v.total)*100).toFixed(1)+"%":"0%"}</td></tr>`
-      ]).join("");
-      const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>SF6 - SY ${sy}</title>
-<style>@page{size:8.5in 13in;margin:0.6in;}*{margin:0;padding:0;box-sizing:border-box;}body{font-family:'Bookman Old Style',serif;font-size:10pt;padding:0.6in;}
-.hdr{text-align:center;margin-bottom:6pt;}.hdr .t{font-size:14pt;font-weight:bold;}.hdr .s{font-size:10pt;color:#333;}
-.seal{width:0.6in;height:0.6in;object-fit:contain;margin:2pt auto;display:block;}
-hr{border:none;border-top:2pt solid #000;margin:4pt 0;}
-table{width:100%;border-collapse:collapse;margin:10pt 0;}th,td{border:1pt solid #999;padding:5pt 8pt;text-align:center;font-size:9pt;}
-th{background:#1B4D7E;color:#fff;}.gt{background:#1B4D7E;color:#fff;font-weight:bold;}
-.sig{margin-top:20pt;display:flex;justify-content:space-between;page-break-inside:avoid;}
-.sig div{text-align:center;width:40%;}.sig .line{border-top:1pt solid #000;margin-top:30pt;padding-top:2pt;font-weight:bold;}
-</style></head><body>
-<div class="hdr"><img src="${DEPED_SEAL}" class="seal"/><div class="t">School Form 6 (SF6)</div>
-<div class="s">Summarization of Promotion and Level of Proficiency</div>
-<div class="s">Tunga Elementary School · School ID: 119502 · SY ${sy}</div></div><hr/>
-<table><thead><tr><th>Grade</th><th>Section</th><th>Adviser</th><th>Enrolled</th><th>Promoted</th><th>Retained</th><th>Others</th><th>Promotion Rate</th></tr></thead>
-<tbody>${rows}
-<tr class="gt"><td colspan="3">GRAND TOTAL</td><td>${gt.t}</td><td>${gt.p}</td><td>${gt.r}</td><td>${gt.t-gt.p-gt.r}</td><td>${gt.t?((gt.p/gt.t)*100).toFixed(1)+"%":"0%"}</td></tr>
-<tr class="gt"><td colspan="3">Male: ${gt.m} | Female: ${gt.f}</td><td colspan="5"></td></tr></tbody></table>
-<div class="sig"><div>Prepared by:<img src="${E_SIG}" style="height:36pt;display:block;margin:2pt auto;"/><div class="line">WILLIAM A. BUQUIA, Dev.Ed.D.</div><div>Principal I · ${now()}</div></div>
-<div>Certified Correct:<div class="line" style="margin-top:60pt;">MARCELITA S. DIGNOS, Ed.D., CESO IV</div><div>Schools Division Superintendent</div></div></div>
-<script>window.onload=function(){setTimeout(function(){window.print();},500);}<\/script></body></html>`;
-      const w=window.open("","_blank","width=850,height=1100");if(w){w.document.write(html);w.document.close();}};
-
-    /* F15 PDF Generator (admin — consolidates all F14) */
-    const genF15=()=>{
-      const allF14=Object.values(f14Data);if(!allF14.length){alert("No Form 14 data uploaded yet");return;}
-      const mos=["Jun","Jul","Aug","Sep","Oct","Nov","Dec","Jan","Feb","Mar","Apr"];
-      const byGrade={};allF14.forEach(d=>{if(!byGrade[d.grade])byGrade[d.grade]={enrolled:0,sections:[],monthly:mos.map(()=>0)};
-        const secTotal=d.records.length;byGrade[d.grade].enrolled+=secTotal;
-        const secMonthly=mos.map((_,mi)=>{const mk=mos[mi].toLowerCase().slice(0,3);return d.records.reduce((a,r)=>a+(r.absences[mk]||0),0);});
-        secMonthly.forEach((v,i)=>byGrade[d.grade].monthly[i]+=v);
-        byGrade[d.grade].sections.push({section:d.section,adviser:d.adviser,enrolled:secTotal,totalAbs:d.records.reduce((a,r)=>a+r.total,0),monthly:secMonthly});});
-      const gtEnrolled=Object.values(byGrade).reduce((a,v)=>a+v.enrolled,0);
-      const gtMonthly=mos.map((_,i)=>Object.values(byGrade).reduce((a,v)=>a+v.monthly[i],0));
-      const gtAbs=gtMonthly.reduce((a,b)=>a+b,0);
-      const rows=Object.entries(byGrade).flatMap(([gr,v])=>v.sections.map(s=>
-        `<tr><td>${gr}</td><td>${s.section}</td><td>${s.adviser||"—"}</td><td>${s.enrolled}</td>${s.monthly.map(m=>`<td>${m||""}</td>`).join("")}<td style="font-weight:700">${s.totalAbs}</td></tr>`)).join("");
-      const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Form 15 - SY ${sy}</title>
-<style>@page{size:13in 8.5in;margin:0.4in;}*{margin:0;padding:0;box-sizing:border-box;}body{font-family:'Bookman Old Style',serif;font-size:9pt;padding:0.4in;}
-.hdr{text-align:center;margin-bottom:6pt;}.hdr .t{font-size:13pt;font-weight:bold;}.hdr .s{font-size:9pt;color:#333;}
-.seal{width:0.5in;height:0.5in;object-fit:contain;margin:2pt auto;display:block;}
-hr{border:none;border-top:2pt solid #000;margin:4pt 0;}
-table{width:100%;border-collapse:collapse;margin:8pt 0;}th,td{border:1pt solid #999;padding:3pt 5pt;text-align:center;font-size:8pt;}
-th{background:#1B4D7E;color:#fff;font-size:7pt;}.gt{background:#1B4D7E;color:#fff;font-weight:bold;}
-.sig{margin-top:14pt;display:flex;justify-content:space-between;font-size:9pt;}
-.sig div{text-align:center;width:35%;}.sig .line{border-top:1pt solid #000;margin-top:28pt;padding-top:2pt;font-weight:bold;}
-</style></head><body>
-<div class="hdr"><img src="${DEPED_SEAL}" class="seal"/><div class="t">Form 15 — Summary of Learner's Attendance</div>
-<div class="s">Tunga Elementary School · 119502 · SY ${sy}</div></div><hr/>
-<table><thead><tr><th>Grade</th><th>Section</th><th>Adviser</th><th>Enrolled</th>${mos.map(m=>`<th>${m}</th>`).join("")}<th>Total Abs</th></tr></thead>
-<tbody>${rows}
-<tr class="gt"><td colspan="3">GRAND TOTAL</td><td>${gtEnrolled}</td>${gtMonthly.map(m=>`<td>${m}</td>`).join("")}<td>${gtAbs}</td></tr></tbody></table>
-<div class="sig"><div>Prepared by:<img src="${E_SIG}" style="height:30pt;display:block;margin:2pt auto;"/><div class="line">WILLIAM A. BUQUIA, Dev.Ed.D.</div><div>Principal I · ${now()}</div></div>
-<div>Certified Correct:<div class="line" style="margin-top:50pt;">MARCELITA S. DIGNOS, Ed.D., CESO IV</div><div>Schools Division Superintendent</div></div></div>
-<script>window.onload=function(){setTimeout(function(){window.print();},500);}<\/script></body></html>`;
-      const w=window.open("","_blank","width=1100,height=850");if(w){w.document.write(html);w.document.close();}};
-
-    const sf5Count=Object.keys(sf5Data).length;const f14Count=Object.keys(f14Data).length;
-
-    return(<><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+    const fi=FORM_INFO[dfTab];
+    return(<><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12,flexWrap:"wrap",gap:6}}>
       <h2 style={{fontSize:20,fontWeight:700}}>DepEd School Forms</h2>
-      <div style={{display:"flex",gap:4}}>{[{t:"sf5",l:"SF5 → SF6"},{t:"f14",l:"F14 → F15"}].map(x=><button key={x.t} onClick={()=>setDfTab(x.t)}
-        style={{padding:"6px 14px",borderRadius:8,border:dfTab===x.t?"2px solid #1B4D7E":"2px solid #e4e7ec",background:dfTab===x.t?"#1B4D7E":"#fff",color:dfTab===x.t?"#fff":"#333",fontWeight:600,cursor:"pointer",fontSize:12,fontFamily:"inherit"}}>{x.l}</button>)}</div></div>
-
-      {/* ── SF5 TAB ── */}
-      {dfTab==="sf5"&&(<>
-        <div style={{background:"#e8f0fe",borderRadius:10,padding:12,marginBottom:14,fontSize:12,color:"#1B4D7E"}}>
-          <strong>SF5 — Report on Promotion</strong> · Upload CSV per section (Name, LRN, Sex, Average, Proficiency, Status).
-          {isAdmin&&<><br/><strong>SF6</strong> auto-generates from all uploaded SF5 data (admin only).</>}</div>
-        {isAdmin&&sf5Count>0&&<div style={{marginBottom:12}}><Btn color="#2E6B4F" onClick={genSF6}>{IC.download} Generate SF6 PDF (from {sf5Count} sections)</Btn></div>}
-        {visibleGrades.map((g,gi)=>{const realGi=grades.findIndex(x=>x.grade===g.grade);return<div key={gi} style={{background:"#fff",borderRadius:12,padding:14,marginBottom:10}}>
-          <h3 style={{fontSize:15,fontWeight:600,color:"#1B4D7E",marginBottom:8}}>{g.grade}</h3>
-          {g.sections.map((s,si)=>{const realSi=grades[realGi].sections.findIndex(x=>x.id===s.id);const k=secKey(realGi,realSi);const d=sf5Data[k];
-            return<div key={si} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 12px",background:d?"#eafaf1":"#f9f9fb",borderRadius:8,marginBottom:4,border:`1px solid ${d?"#2E6B4F":"#e4e7ec"}`}}>
-              <div style={{flex:1}}><div style={{fontWeight:600,fontSize:14}}>{s.name}</div><div style={{fontSize:11,color:"#888"}}>Adviser: {s.adviser||"—"}</div>
-                {d&&<div style={{fontSize:11,color:"#2E6B4F",marginTop:2}}>✓ {d.records.length} records · Promoted: {d.records.filter(r=>(r.status||"").toUpperCase().includes("PROMOT")).length} · {d.date}</div>}</div>
-              <input ref={csvRef2} type="file" accept=".csv" hidden onChange={e=>{if(e.target.files[0])parseSF5(realGi,realSi,e.target.files[0]);e.target.value="";}}/>
-              <Btn sm color={d?"#2E6B4F":"#1B4D7E"} onClick={()=>csvRef2.current?.click()}>{IC.upload} {d?"Update":"Upload"} SF5</Btn></div>})}</div>})}</>)}
-
-      {/* ── F14 TAB ── */}
-      {dfTab==="f14"&&(<>
-        <div style={{background:"#fef9e7",borderRadius:10,padding:12,marginBottom:14,fontSize:12,color:"#7D6608"}}>
-          <strong>Form 14 — Individual Learner's Attendance</strong> · Upload CSV per section (Name, Sex, Jun, Jul, Aug, Sep, Oct, Nov, Dec, Jan, Feb, Mar, Apr — days absent per month).
-          {isAdmin&&<><br/><strong>Form 15</strong> auto-generates school summary from all F14 data (admin only).</>}</div>
-        {isAdmin&&f14Count>0&&<div style={{marginBottom:12}}><Btn color="#7D6608" onClick={genF15}>{IC.download} Generate Form 15 PDF (from {f14Count} sections)</Btn></div>}
-        {visibleGrades.map((g,gi)=>{const realGi=grades.findIndex(x=>x.grade===g.grade);return<div key={gi} style={{background:"#fff",borderRadius:12,padding:14,marginBottom:10}}>
-          <h3 style={{fontSize:15,fontWeight:600,color:"#7D6608",marginBottom:8}}>{g.grade}</h3>
-          {g.sections.map((s,si)=>{const realSi=grades[realGi].sections.findIndex(x=>x.id===s.id);const k=secKey(realGi,realSi);const d=f14Data[k];
-            return<div key={si} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 12px",background:d?"#fef9e7":"#f9f9fb",borderRadius:8,marginBottom:4,border:`1px solid ${d?"#7D6608":"#e4e7ec"}`}}>
-              <div style={{flex:1}}><div style={{fontWeight:600,fontSize:14}}>{s.name}</div><div style={{fontSize:11,color:"#888"}}>Adviser: {s.adviser||"—"}</div>
-                {d&&<div style={{fontSize:11,color:"#7D6608",marginTop:2}}>✓ {d.records.length} records · Total absences: {d.records.reduce((a,r)=>a+r.total,0)} · {d.date}</div>}</div>
-              <input ref={csvRef3} type="file" accept=".csv" hidden onChange={e=>{if(e.target.files[0])parseF14(realGi,realSi,e.target.files[0]);e.target.value="";}}/>
-              <Btn sm color={d?"#7D6608":"#5B2C6F"} onClick={()=>csvRef3.current?.click()}>{IC.upload} {d?"Update":"Upload"} F14</Btn></div>})}</div>})}</>)}
+      <div style={{display:"flex",gap:3,flexWrap:"wrap"}}>{FORMS.map(fm=><button key={fm} onClick={()=>setDfTab(fm)} style={{padding:"5px 10px",borderRadius:6,border:dfTab===fm?`2px solid ${FORM_INFO[fm].color}`:"2px solid #e4e7ec",background:dfTab===fm?FORM_INFO[fm].color:"#fff",color:dfTab===fm?"#fff":"#333",fontWeight:600,cursor:"pointer",fontSize:11,fontFamily:"inherit"}}>{fm}{dfTab!==fm&&ffc(fm)>0&&<span style={{marginLeft:3,fontSize:9,opacity:.7}}>({ffc(fm)})</span>}</button>)}</div></div>
+      <div style={{background:`${fi.color}10`,borderRadius:10,padding:12,marginBottom:14,fontSize:12,color:fi.color,borderLeft:`4px solid ${fi.color}`}}>
+        <strong>{dfTab} — {fi.desc}</strong> · SY {sy}{fi.csv&&<><br/>CSV auto-parse: <em>{fi.csvHint}</em></>}{fi.autoGen&&<><br/>{fi.autoLabel}</>}{fi.adminGen&&isAdmin&&<><br/><strong>{fi.adminLabel}</strong></>}{fi.adminGen&&!isAdmin&&<><br/><em>Admin generates consolidated PDF from teacher uploads</em></>}</div>
+      {fi.adminGen&&isAdmin&&<div style={{marginBottom:14}}>{dfTab==="SF6"&&<Btn color="#943126" onClick={gSF6}>{IC.download} Generate SF6 PDF ({Object.keys(sf5Data).length} sections)</Btn>}{dfTab==="F15"&&<Btn color="#1A5276" onClick={gF15}>{IC.download} Generate Form 15 PDF ({Object.keys(f14Data).length} sections)</Btn>}</div>}
+      {visGrades.map((g,gi)=>{const rGi=grades.findIndex(x=>x.grade===g.grade);return<div key={gi} style={{background:"#fff",borderRadius:12,padding:14,marginBottom:10}}>
+        <h3 style={{fontSize:15,fontWeight:600,color:fi.color,marginBottom:8}}>{g.grade}</h3>
+        {g.sections.map((s,si)=>{const rSi=grades[rGi].sections.findIndex(x=>x.id===s.id);const k=fKey(dfTab,rGi,rSi);const files=sfFiles[k]||[];
+          const sk=sKey(rGi,rSi);const hasSf5=!!sf5Data[sk];const hasF14=!!f14Data[sk];const hasSf1=(grades[rGi].sections[rSi].students||[]).length>0;
+          return<div key={si} style={{padding:"10px 12px",background:"#f9f9fb",borderRadius:8,marginBottom:6,border:"1px solid #e4e7ec"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:files.length?6:0}}>
+              <div style={{flex:1}}><div style={{fontWeight:600,fontSize:14}}>{s.name}</div>
+                <div style={{fontSize:11,color:"#888"}}>Adviser: {s.adviser||"\u2014"} \u00b7 {(s.students||[]).length} students</div>
+                {dfTab==="SF1"&&hasSf1&&<div style={{fontSize:11,color:"#2E6B4F",marginTop:1}}>\u2713 {(grades[rGi].sections[rSi].students||[]).length} learners loaded</div>}
+                {dfTab==="SF5"&&hasSf5&&<div style={{fontSize:11,color:"#5B2C6F",marginTop:1}}>\u2713 {sf5Data[sk].records.length} records \u00b7 Promoted: {sf5Data[sk].records.filter(r=>(r.status||"").toUpperCase().includes("PROMOT")).length}</div>}
+                {dfTab==="F14"&&hasF14&&<div style={{fontSize:11,color:"#7D6608",marginTop:1}}>\u2713 {f14Data[sk].records.length} records \u00b7 Abs: {f14Data[sk].records.reduce((a,r)=>a+r.total,0)}</div>}
+                {files.length>0&&<div style={{fontSize:11,color:fi.color,marginTop:1}}>\ud83d\udcce {files.length} file(s) uploaded</div>}</div>
+              <div style={{display:"flex",gap:4,flexShrink:0,flexWrap:"wrap",justifyContent:"flex-end"}}>
+                {dfTab==="SF1"&&<><input ref={csvRef2} type="file" accept=".csv" hidden onChange={e=>{if(e.target.files[0])pSF1(rGi,rSi,e.target.files[0]);e.target.value="";}}/>
+                  <Btn sm color="#1B4D7E" onClick={()=>csvRef2.current?.click()}>{IC.upload} Parse CSV</Btn></>}
+                {dfTab==="SF5"&&<><input ref={csvRef3} type="file" accept=".csv" hidden onChange={e=>{if(e.target.files[0])pSF5(rGi,rSi,e.target.files[0]);e.target.value="";}}/>
+                  <Btn sm color="#5B2C6F" onClick={()=>csvRef3.current?.click()}>{IC.upload} Parse CSV</Btn></>}
+                {dfTab==="F14"&&<><input ref={csvRef4} type="file" accept=".csv" hidden onChange={e=>{if(e.target.files[0])pF14(rGi,rSi,e.target.files[0]);e.target.value="";}}/>
+                  <Btn sm color="#7D6608" onClick={()=>csvRef4.current?.click()}>{IC.upload} Parse CSV</Btn></>}
+                {dfTab==="SF2"&&hasSf1&&<Btn sm color="#2E6B4F" onClick={()=>gSF2(rGi,rSi)}>{IC.download} Generate PDF</Btn>}
+                {dfTab==="SF4"&&hasSf1&&<Btn sm color="#7B3F00" onClick={()=>gSF4(rGi,rSi)}>{IC.download} Generate PDF</Btn>}
+                <Btn sm outline color={fi.color} onClick={()=>{fr();setModal(`uf_${dfTab}_${rGi}_${rSi}`);}}>{IC.clip} Upload File</Btn></div></div>
+            {files.length>0&&<FileList files={files} onDelete={isAdmin?(idx)=>delFF(dfTab,rGi,rSi,idx):null}/>}
+            <Modal open={modal===`uf_${dfTab}_${rGi}_${rSi}`} onClose={()=>setModal(null)} title={`Upload ${dfTab} \u2014 ${g.grade} ${s.name}`}>
+              <FileUploader onUpload={(file)=>{addFF(dfTab,rGi,rSi,file);setModal(null);}} accept=".pdf,.docx,.xlsx,.jpg,.jpeg,.png,.csv"/></Modal>
+          </div>})}</div>})}
     </>);};
 
   /* ═══ RENDER ═══ */
