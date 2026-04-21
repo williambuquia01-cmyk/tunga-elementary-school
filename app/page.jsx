@@ -1267,7 +1267,7 @@ tr:nth-child(even){background:#f5f7fa;}
       <aside className="tes-sidebar" style={{width:240,background:"#0E2240",color:"#fff",position:"fixed",top:0,bottom:0,left:0,zIndex:999,overflowY:"auto",transition:"transform .25s",transform:sideOpen?"translateX(0)":"translateX(-240px)"}}>
         <div style={{padding:"14px 12px",borderBottom:"1px solid rgba(255,255,255,.08)",display:"flex",alignItems:"center",gap:10}}>
           <img src={LOGO} alt="" style={{width:42,height:42,borderRadius:"50%",border:"2px solid rgba(255,255,255,.2)",objectFit:"cover"}}/>
-          <div><div style={{fontSize:13,fontWeight:700}}>Tunga ES</div><div style={{fontSize:10,opacity:.5}}>Moalboal, Cebu · v3.0</div></div></div>
+          <div><div style={{fontSize:13,fontWeight:700}}>Tunga ES</div><div style={{fontSize:10,opacity:.5}}>Moalboal, Cebu · v4.0 · Cloud</div></div></div>
         <div style={{padding:"8px 10px"}}><select value={sy} onChange={e=>setSy(e.target.value)} style={{width:"100%",padding:"7px 8px",borderRadius:6,border:"1px solid rgba(255,255,255,.15)",background:"rgba(255,255,255,.08)",color:"#fff",fontSize:12,fontFamily:"inherit"}}>
           {SYS.map(s=><option key={s} value={s} style={{color:"#333"}}>SY {s}</option>)}</select></div>
         <nav style={{padding:"4px 8px"}}>{nav.map(n=>(
