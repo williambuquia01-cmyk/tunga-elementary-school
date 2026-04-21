@@ -3,3 +3,10 @@ node_modules/
 out/
 .DS_Store
 *.log
+
+# Environment variables
+.env*
+.env.local
+
+# Backup files
+*.backup
