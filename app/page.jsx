@@ -1,21 +1,99 @@
 'use client';
 import { useState, useEffect, useCallback, useRef } from "react";
 
-/* ═══ STORAGE (localStorage — works in any browser) ═══ */
+/* ═══════════════════════════════════════════════════════════════
+   API CLIENT — talks to Render backend instead of localStorage
+   ═══════════════════════════════════════════════════════════════ */
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://tunga-es-backend.onrender.com";
+const TOKEN_KEY = "tes_token";
+const USER_KEY = "tes_user";
+
+const getToken = () => (typeof window !== "undefined" ? localStorage.getItem(TOKEN_KEY) : null);
+const setToken = (t) => { if (typeof window === "undefined") return; if (t) localStorage.setItem(TOKEN_KEY, t); else localStorage.removeItem(TOKEN_KEY); };
+const getCachedUser = () => { if (typeof window === "undefined") return null; const r = localStorage.getItem(USER_KEY); try { return r ? JSON.parse(r) : null; } catch { return null; } };
+const setCachedUser = (u) => { if (typeof window === "undefined") return; if (u) localStorage.setItem(USER_KEY, JSON.stringify(u)); else localStorage.removeItem(USER_KEY); };
+
+async function apiFetch(path, options = {}) {
+  const token = getToken();
+  const headers = { ...(options.headers || {}), ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+  if (options.body && !(options.body instanceof FormData) && !headers["Content-Type"]) headers["Content-Type"] = "application/json";
+  let res;
+  try { res = await fetch(`${API_URL}${path}`, { ...options, headers }); }
+  catch { throw new Error("Network error — is the backend reachable?"); }
+  if (res.status === 401) { setToken(null); setCachedUser(null); if (typeof window !== "undefined" && !path.includes("/auth/login")) window.location.reload(); throw new Error("Session expired"); }
+  const text = await res.text();
+  let data; try { data = text ? JSON.parse(text) : {}; } catch { data = { error: text }; }
+  if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
+  return data;
+}
+
+const api = {
+  async login(username, password) { const d = await apiFetch("/api/auth/login", { method: "POST", body: JSON.stringify({ username, password }) }); setToken(d.token); setCachedUser(d.user); return d.user; },
+  logout() { setToken(null); setCachedUser(null); },
+  async me() { return apiFetch("/api/auth/me"); },
+  async changePassword(oldPassword, newPassword) { return apiFetch("/api/auth/change-password", { method: "POST", body: JSON.stringify({ oldPassword, newPassword }) }); },
+  async storeGet(key) { try { const d = await apiFetch(`/api/store/${encodeURIComponent(key)}`); return d.value; } catch (e) { if (e.message && e.message.includes("Not found")) return null; return null; } },
+  async storeSet(key, value) { return apiFetch(`/api/store/${encodeURIComponent(key)}`, { method: "PUT", body: JSON.stringify({ value }) }); },
+  async storeDelete(key) { return apiFetch(`/api/store/${encodeURIComponent(key)}`, { method: "DELETE" }); },
+  async uploadFile(file) { const fd = new FormData(); fd.append("file", file); return apiFetch("/api/upload", { method: "POST", body: fd }); },
+  async listUsers() { return apiFetch("/api/users"); },
+  async createUser(u) { return apiFetch("/api/users", { method: "POST", body: JSON.stringify(u) }); },
+  async updateUser(id, c) { return apiFetch(`/api/users/${id}`, { method: "PUT", body: JSON.stringify(c) }); },
+  async deleteUser(id) { return apiFetch(`/api/users/${id}`, { method: "DELETE" }); },
+};
+
+/* ═══ STORAGE (backed by Render PostgreSQL via API) ═══ */
+const _storeCache = new Map();
+const _pendingWrites = new Map();
+const WRITE_DEBOUNCE = 500;
+
 function useStore(key, init) {
-  const [val, setVal] = useState(init);
+  const [val, setVal] = useState(() => (_storeCache.has(key) ? _storeCache.get(key) : init));
   const ref = useRef(val);
   ref.current = val;
+
   useEffect(() => {
-    try { const d = localStorage.getItem(key); if (d) { const p = JSON.parse(d); setVal(p); ref.current = p; } } catch {}
+    if (!getToken()) return;
+    if (_storeCache.has(key)) { const c = _storeCache.get(key); setVal(c); ref.current = c; return; }
+    let cancelled = false;
+    api.storeGet(key).then((v) => {
+      if (cancelled) return;
+      const finalVal = v !== null && v !== undefined ? v : init;
+      _storeCache.set(key, finalVal);
+      setVal(finalVal); ref.current = finalVal;
+    }).catch((e) => console.warn(`[useStore] load ${key}:`, e.message));
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
+
   const save = useCallback((v) => {
     const nv = typeof v === "function" ? v(ref.current) : v;
     ref.current = nv;
+    _storeCache.set(key, nv);
     setVal(nv);
-    try { localStorage.setItem(key, JSON.stringify(nv)); } catch {}
+    if (_pendingWrites.has(key)) clearTimeout(_pendingWrites.get(key));
+    const tid = setTimeout(() => {
+      _pendingWrites.delete(key);
+      api.storeSet(key, nv).catch((e) => console.error(`[useStore] save ${key}:`, e.message));
+    }, WRITE_DEBOUNCE);
+    _pendingWrites.set(key, tid);
   }, [key]);
+
   return [val, save];
+}
+
+function clearStoreCache() {
+  _storeCache.clear();
+  _pendingWrites.forEach((t) => clearTimeout(t));
+  _pendingWrites.clear();
+}
+
+async function restoreSession() {
+  if (!getToken()) return null;
+  try {
+    const u = await api.me();
+    return { role: u.role, name: u.name, id: u.id, username: u.username, position: u.position, assignedSections: u.assignedSections || [], coordinatorOf: u.coordinatorOf || [] };
+  } catch { return null; }
 }
 
 /* ═══ CONSTANTS ═══ */
@@ -173,28 +251,31 @@ const Badge=({children,color})=><span style={{display:"inline-block",padding:"2p
 
 const Sel=({label,value,onChange,options})=>(<div style={{marginBottom:12}}>{label&&<label style={{display:"block",fontSize:13,fontWeight:500,color:"#666",marginBottom:3}}>{label}</label>}<select style={sI} value={value} onChange={e=>onChange(e.target.value)}>{options.map(o=>typeof o==="string"?<option key={o} value={o}>{o}</option>:<option key={o.value} value={o.value}>{o.label}</option>)}</select></div>);
 
-/* ═══ FILE UPLOADER (NEW — drag & drop, base64 storage) ═══ */
-function FileUploader({onUpload,accept,maxMB=4,label}){
+/* ═══ FILE UPLOADER (NEW — uploads to Cloudinary via backend) ═══ */
+function FileUploader({onUpload,accept,maxMB=15,label}){
   const ref=useRef();const[drag,setDrag]=useState(false);const[busy,setBusy]=useState(false);
   const process=async(file)=>{if(!file)return;if(file.size>maxMB*1048576){alert(`Max ${maxMB}MB`);return;}
-    setBusy(true);try{const b64=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=()=>rej("fail");r.readAsDataURL(file);});
-      onUpload({name:file.name,size:file.size,type:file.type,data:b64,date:nowS()});}catch{alert("Upload failed");}setBusy(false);if(ref.current)ref.current.value="";};
+    setBusy(true);try{const result=await api.uploadFile(file);
+      onUpload({name:result.name,size:result.size,type:result.type,url:result.url,publicId:result.publicId,date:result.date||nowS()});}
+    catch(e){alert("Upload failed: "+(e.message||"unknown"));}
+    setBusy(false);if(ref.current)ref.current.value="";};
   return(<div onDragOver={e=>{e.preventDefault();setDrag(true);}} onDragLeave={()=>setDrag(false)} onDrop={e=>{e.preventDefault();setDrag(false);process(e.dataTransfer.files[0]);}}
-    onClick={()=>ref.current?.click()} style={{border:`2px dashed ${drag?"#1B4D7E":"#ccc"}`,borderRadius:10,padding:"18px 14px",textAlign:"center",cursor:"pointer",background:drag?"#e8f0fe":"#fafafa",transition:"all .2s"}}>
+    onClick={()=>!busy&&ref.current?.click()} style={{border:`2px dashed ${drag?"#1B4D7E":"#ccc"}`,borderRadius:10,padding:"18px 14px",textAlign:"center",cursor:busy?"wait":"pointer",background:drag?"#e8f0fe":"#fafafa",transition:"all .2s",opacity:busy?0.6:1}}>
     <input ref={ref} type="file" accept={accept||"*"} hidden onChange={e=>process(e.target.files[0])}/>
-    {busy?<div style={{color:"#1B4D7E",fontWeight:600}}>Processing...</div>:
-    <><div style={{fontSize:24,marginBottom:4}}>📎</div><div style={{fontWeight:600,fontSize:13,color:"#333"}}>{label||"Click or drag file here"}</div>
+    {busy?<div style={{color:"#1B4D7E",fontWeight:600}}>Uploading to cloud…</div>:
+    <><div style={{fontSize:24,marginBottom:4}}>☁️</div><div style={{fontWeight:600,fontSize:13,color:"#333"}}>{label||"Click or drag file here"}</div>
       <div style={{fontSize:11,color:"#999",marginTop:2}}>PDF, DOCX, XLSX, Images — max {maxMB}MB</div></>}</div>);
 }
 
-/* ═══ FILE LIST (with download & delete) ═══ */
+/* ═══ FILE LIST (handles both old base64 data and new Cloudinary URLs) ═══ */
 function FileList({files,onDelete}){
   if(!files?.length)return<div style={{fontSize:12,color:"#bbb",fontStyle:"italic",padding:"6px 0"}}>No files attached.</div>;
   const ico=(t)=>{if(t?.includes("pdf"))return"📄";if(t?.includes("word")||t?.includes("docx"))return"📝";if(t?.includes("sheet")||t?.includes("xlsx"))return"📊";if(t?.includes("image"))return"🖼️";if(t?.includes("ppt"))return"📽️";return"📎";};
-  return<div style={{display:"flex",flexDirection:"column",gap:4}}>{files.map((f,i)=><div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 10px",background:"#f9f9fb",borderRadius:8,border:"1px solid #f0f0f0"}}>
+  const open=(f)=>{if(f.url){window.open(f.url,"_blank");return;}if(f.data){const a=document.createElement("a");a.href=f.data;a.download=f.name;a.click();}};
+  return<div style={{display:"flex",flexDirection:"column",gap:4}}>{files.map((f,i)=><div key={f.publicId||f.id||i} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 10px",background:"#f9f9fb",borderRadius:8,border:"1px solid #f0f0f0"}}>
     <span style={{fontSize:18}}>{ico(f.type)}</span><div style={{flex:1,minWidth:0}}><div style={{fontSize:13,fontWeight:500,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{f.name}</div>
       <div style={{fontSize:10,color:"#999"}}>{fmtSize(f.size)} · {f.date}{f.teacher&&` · ${f.teacher}`}</div></div>
-    {f.data&&<button onClick={e=>{e.stopPropagation();const a=document.createElement("a");a.href=f.data;a.download=f.name;a.click();}} style={{background:"none",border:"none",cursor:"pointer",fontSize:15,padding:2}} title="Download">⬇️</button>}
+    {(f.url||f.data)&&<button onClick={e=>{e.stopPropagation();open(f);}} style={{background:"none",border:"none",cursor:"pointer",fontSize:15,padding:2}} title="Download">⬇️</button>}
     {onDelete&&<button onClick={e=>{e.stopPropagation();onDelete(i);}} style={{background:"none",border:"none",cursor:"pointer",color:"#c0392b",fontSize:13}}>✕</button>}</div>)}</div>;
 }
 
@@ -208,29 +289,35 @@ function SignBlock({show}){
   </div>);
 }
 
-/* ═══ LOGIN ═══ */
-function LoginPage({onLogin,users}){
-  const[u,setU]=useState("");const[p,setP]=useState("");const[err,setErr]=useState("");
-  const go=()=>{
-    if(u==="buquia"&&p==="buquia040685"){onLogin({role:"admin",name:"William A. Buquia",id:"admin"});return;}
-    const found=users.find(x=>x.username===u.toLowerCase()&&x.password===p);
-    if(found){onLogin({...found});return;}
-    setErr("Invalid credentials");};
-  return(<div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"linear-gradient(135deg,#0E2240,#1B4D7E 50%,#2E6B4F)",padding:16}}>
+/* ═══ LOGIN (JWT-based via backend API) ═══ */
+function LoginPage({onLogin}){
+  const[u,setU]=useState("");const[p,setP]=useState("");const[err,setErr]=useState("");const[busy,setBusy]=useState(false);
+  const go=async()=>{
+    if(!u||!p){setErr("Please enter both username and password");return;}
+    setErr("");setBusy(true);
+    try{
+      const user=await api.login(u.trim(),p);
+      onLogin({role:user.role,name:user.name,id:user.id,username:user.username,position:user.position,assignedSections:user.assignedSections||[],coordinatorOf:user.coordinatorOf||[]});
+    }catch(e){setErr(e.message||"Login failed");}
+    setBusy(false);
+  };
+  return(<div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"linear-gradient(135deg,#0E2240,#1B4D7E 50%,#2E6B4F)",padding:16}}
+    onKeyDown={e=>{if(e.key==="Enter"&&!busy)go();}}>
     <div style={{background:"#fff",borderRadius:20,padding:32,width:"100%",maxWidth:380,boxShadow:"0 20px 60px rgba(0,0,0,.3)"}}>
       <div style={{textAlign:"center",marginBottom:20}}><img src={LOGO} alt="" style={{width:80,height:80,borderRadius:"50%",border:"3px solid #1B4D7E",objectFit:"cover",margin:"0 auto",display:"block"}}/>
         <h1 style={{fontSize:20,fontWeight:700,margin:"10px 0 2px",color:"#0E2240"}}>Tunga Elementary School</h1>
-        <div style={{fontSize:12,color:"#999"}}>School Management System v3.0</div></div>
+        <div style={{fontSize:12,color:"#999"}}>School Management System v4.0 · Cloud</div></div>
       {err&&<div style={{background:"#fde8e8",color:"#c0392b",padding:"8px 12px",borderRadius:8,fontSize:13,marginBottom:12}}>{err}</div>}
       <Inp label="Username" value={u} onChange={v=>{setU(v);setErr("");}} ph="Enter username"/>
       <Inp label="Password" value={p} onChange={v=>{setP(v);setErr("");}} ph="Enter password" type="password"/>
-      <Btn onClick={go} full>Sign in</Btn>
-      <div style={{fontSize:11,color:"#bbb",textAlign:"center",marginTop:12}}>School Management System v3.0</div></div></div>);
+      <Btn onClick={go} full disabled={busy}>{busy?"Signing in…":"Sign in"}</Btn>
+      <div style={{fontSize:11,color:"#bbb",textAlign:"center",marginTop:12}}>Tunga ES · Moalboal, Cebu · School ID 119502</div></div></div>);
 }
 
 /* ═══════════════ MAIN APP ═══════════════ */
 export default function App(){
   const[auth,setAuth]=useState(null);
+  const[authChecked,setAuthChecked]=useState(false);
   const[page,setPage]=useState("home");
   const[sy,setSy]=useStore("current_sy","2025-2026");
   const[sideOpen,setSideOpen]=useState(false);
@@ -258,7 +345,16 @@ export default function App(){
   const[f14Data,setF14Data]=useStore(`f14_${sy}`,{});
   const[sfFiles,setSfFiles]=useStore(`sfFiles_${sy}`,{});
 
-  if(!auth) return <LoginPage onLogin={setAuth} users={users}/>;
+  // ── Session restore on app load ──
+  useEffect(() => {
+    restoreSession().then((user) => {
+      if (user) setAuth(user);
+      setAuthChecked(true);
+    });
+  }, []);
+
+  if(!authChecked) return <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"#f4f6f8",fontFamily:"'Segoe UI',system-ui,sans-serif",color:"#1B4D7E",fontSize:14}}>Loading…</div>;
+  if(!auth) return <LoginPage onLogin={setAuth}/>;
 
   const totalStudents=grades.reduce((a,g)=>a+g.sections.reduce((b,s)=>b+(s.students?.length||0),0),0);
   const totalM=grades.reduce((a,g)=>a+g.sections.reduce((b,s)=>b+(s.students?.filter(x=>x.sex==="M").length||0),0),0);
@@ -1180,7 +1276,7 @@ tr:nth-child(even){background:#f5f7fa;}
             {n.id==="co_schedule"&&coRequests.filter(r=>r.status==="pending").length>0&&<span style={{background:"#c0392b",color:"#fff",borderRadius:10,padding:"1px 6px",fontSize:10,fontWeight:700,marginLeft:"auto"}}>{coRequests.filter(r=>r.status==="pending").length}</span>}
           </button>))}</nav>
         <div style={{padding:12,borderTop:"1px solid rgba(255,255,255,.08)",position:"absolute",bottom:0,left:0,right:0}}>
-          <button onClick={()=>{setAuth(null);setPage("home");}} style={{display:"flex",alignItems:"center",gap:6,background:"none",border:"none",color:"rgba(255,255,255,.4)",cursor:"pointer",fontSize:12,fontFamily:"inherit"}}>{IC.log} Sign out</button>
+          <button onClick={()=>{api.logout();clearStoreCache();setAuth(null);setPage("home");}} style={{display:"flex",alignItems:"center",gap:6,background:"none",border:"none",color:"rgba(255,255,255,.4)",cursor:"pointer",fontSize:12,fontFamily:"inherit"}}>{IC.log} Sign out</button>
           <div style={{fontSize:10,opacity:.3,marginTop:6}}>{auth.name} ({auth.role})</div></div></aside>
       <main style={{flex:1,marginLeft:0,minWidth:0}}>
         <header style={{background:"#fff",padding:"10px 16px",display:"flex",alignItems:"center",gap:10,borderBottom:"1px solid #e4e7ec",position:"sticky",top:0,zIndex:100}}>
