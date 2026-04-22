@@ -397,23 +397,23 @@ export default function App(){
   const HomePage=()=>{
     const pendingCO=coRequests.filter(r=>r.status==="pending").length;
     return(<>
-    <div style={{background:"linear-gradient(135deg,#0E2240,#1B4D7E 50%,#2E6B4F)",borderRadius:16,padding:24,color:"#fff",marginBottom:16}}>
+    <div style={{background:"linear-gradient(135deg,#0b2a52 0%,#143d5c 55%,#1f6b4e 100%)",borderRadius:16,padding:24,color:"#fff",marginBottom:16,boxShadow:"var(--shadow-md)"}}>
       <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:8}}>
         <img src={LOGO} alt="" style={{width:64,height:64,borderRadius:"50%",border:"2px solid rgba(255,255,255,.25)",objectFit:"cover",flexShrink:0}}/>
-        <div><div style={{fontSize:10,letterSpacing:2,opacity:.6,textTransform:"uppercase"}}>DepEd · Schools Division of Cebu Province · Region VII</div>
-          <h1 style={{fontSize:22,margin:"2px 0",fontWeight:700}}>Tunga Elementary School</h1>
-          <div style={{fontSize:12,opacity:.75}}>Brgy. Tunga, Moalboal, Cebu · ID: 119502 · SY {sy}</div></div>
-      <img src={PHOTO} alt="Tunga ES Personnel" style={{width:"100%",borderRadius:10,marginTop:12,opacity:.9,objectFit:"cover",maxHeight:180}}/>
+        <div><div style={{fontSize:10,letterSpacing:2.5,opacity:.7,textTransform:"uppercase",fontWeight:500}}>DepEd · Schools Division of Cebu Province · Region VII</div>
+          <h1 style={{fontSize:24,margin:"2px 0",fontWeight:500,fontFamily:"var(--font-serif)",letterSpacing:"-0.02em"}}>Tunga Elementary School</h1>
+          <div style={{fontSize:12,opacity:.78}}>Brgy. Tunga, Moalboal, Cebu · ID: 119502 · SY {sy}</div></div>
+      <img src={PHOTO} alt="Tunga ES Personnel" style={{width:"100%",borderRadius:10,marginTop:12,opacity:.92,objectFit:"cover",maxHeight:180,border:"1px solid rgba(255,255,255,0.12)"}}/>
     </div></div>
     <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(130px,1fr))",gap:10,marginBottom:16}}>
-      {[{l:"Students",v:totalStudents,s:`${totalM}M / ${totalF}F`,c:"#1B4D7E"},{l:"Teachers",v:users.filter(u=>u.role==="teacher").length,c:"#2E6B4F"},{l:"Non-Teaching",v:users.filter(u=>u.role==="non-teaching").length,c:"#5B2C6F"},{l:"Sections",v:totalSections,c:"#943126"},{l:"Pending CO",v:pendingCO,c:"#7D6608"}].map(s=><div key={s.l} style={{background:"#fff",borderRadius:12,padding:14,borderLeft:`4px solid ${s.c}`}}>
-        <div style={{fontSize:11,color:"#999"}}>{s.l}</div><div style={{fontSize:24,fontWeight:700,color:s.c}}>{s.v}</div>
-        {s.s&&<div style={{fontSize:11,color:"#888"}}>{s.s}</div>}</div>)}</div>
+      {[{l:"Students",v:totalStudents,s:`${totalM}M / ${totalF}F`,c:"#0b2a52"},{l:"Teachers",v:users.filter(u=>u.role==="teacher").length,c:"#1f6b4e"},{l:"Non-Teaching",v:users.filter(u=>u.role==="non-teaching").length,c:"#5f5a4c"},{l:"Sections",v:totalSections,c:"#a2321a"},{l:"Pending CO",v:pendingCO,c:"#a8640a"}].map(s=><div key={s.l} style={{background:"#fff",borderRadius:12,padding:14,borderLeft:`4px solid ${s.c}`,boxShadow:"var(--shadow-sm)"}}>
+        <div style={{fontSize:11,color:"var(--ink-muted)",textTransform:"uppercase",letterSpacing:"0.05em",fontWeight:600}}>{s.l}</div><div style={{fontSize:26,fontWeight:500,color:s.c,fontFamily:"var(--font-serif)",letterSpacing:"-0.02em"}}>{s.v}</div>
+        {s.s&&<div style={{fontSize:11,color:"var(--ink-muted)"}}>{s.s}</div>}</div>)}</div>
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-      <div style={{background:"#fff",borderRadius:12,padding:14}}><div style={{fontSize:14,fontWeight:600,marginBottom:4}}>Logged in as</div><div style={{fontSize:15,fontWeight:700,color:"#1B4D7E"}}>{auth.name}</div><div style={{fontSize:12,color:"#999"}}>{auth.role==="admin"?"Administrator":auth.role} {auth.coordinatorOf?.length>0&&`· ${auth.coordinatorOf.join(", ")}`}</div></div>
-      <div style={{background:"#fff",borderRadius:12,padding:14}}><div style={{fontSize:14,fontWeight:600,marginBottom:4}}>Quick actions</div>
-        <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>{isAdmin&&<Btn sm onClick={()=>setPage("students")}>{IC.student} Students</Btn>}{isAdmin&&<Btn sm onClick={()=>setPage("personnel")} color="#2E6B4F">{IC.key} Personnel</Btn>}
-          <Btn sm onClick={()=>setPage("co_schedule")} color="#7D6608">{IC.cal} CO Sched</Btn></div></div></div></>);};
+      <div style={{background:"#fff",borderRadius:12,padding:14,boxShadow:"var(--shadow-sm)"}}><div style={{fontSize:13,fontWeight:600,marginBottom:4,color:"var(--ink-muted)",textTransform:"uppercase",letterSpacing:"0.05em"}}>Logged in as</div><div style={{fontSize:17,fontWeight:500,color:"var(--brand-1)",fontFamily:"var(--font-serif)",letterSpacing:"-0.01em"}}>{auth.name}</div><div style={{fontSize:12,color:"var(--ink-muted)"}}>{auth.role==="admin"?"Administrator":auth.role} {auth.coordinatorOf?.length>0&&`· ${auth.coordinatorOf.join(", ")}`}</div></div>
+      <div style={{background:"#fff",borderRadius:12,padding:14,boxShadow:"var(--shadow-sm)"}}><div style={{fontSize:13,fontWeight:600,marginBottom:6,color:"var(--ink-muted)",textTransform:"uppercase",letterSpacing:"0.05em"}}>Quick actions</div>
+        <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>{isAdmin&&<Btn sm onClick={()=>setPage("students")} color="#0b2a52">{IC.student} Students</Btn>}{isAdmin&&<Btn sm onClick={()=>setPage("personnel")} color="#1f6b4e">{IC.key} Personnel</Btn>}
+          <Btn sm onClick={()=>setPage("co_schedule")} color="#a8640a">{IC.cal} CO Sched</Btn></div></div></div></>);};
 
   /* ═══ STUDENTS ═══ */
   const StudentsPage=()=>{
