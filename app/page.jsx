@@ -344,6 +344,7 @@ export default function App(){
   const[sf5Data,setSf5Data]=useStore(`sf5_${sy}`,{});
   const[f14Data,setF14Data]=useStore(`f14_${sy}`,{});
   const[sfFiles,setSfFiles]=useStore(`sfFiles_${sy}`,{});
+  const[leaves,setLeaves]=useStore(`leaves_${sy}`,[]);
 
   // ── Session restore on app load ──
   useEffect(() => {
@@ -364,7 +365,7 @@ export default function App(){
 
   const canAccess=(navId)=>{
     if(isAdmin) return true;
-    const always=["home","announcements","memos","bulletins","co_schedule"];
+    const always=["home","announcements","memos","bulletins","co_schedule","leaves"];
     if(always.includes(navId)) return true;
     if(navId==="students"||navId==="grades"||navId==="depedforms") return (auth.assignedSections||[]).length>0;
     if(navId==="reports"||navId==="tmov"||navId==="forms"||navId==="ppssh") return (auth.coordinatorOf||[]).length>0;
@@ -388,6 +389,7 @@ export default function App(){
     {id:"classprog",label:"Class Programs",icon:"board"},
     {id:"depedforms",label:"DepEd Forms",icon:"file"},
     {id:"co_schedule",label:"CO Schedule",icon:"cal"},
+    {id:"leaves",label:"Leave Requests",icon:"clock"},
     {id:"forms",label:"Form Templates",icon:"clip"},
   ].filter(n=>isAdmin||canAccess(n.id));
 
@@ -1254,8 +1256,152 @@ tr:nth-child(even){background:#f5f7fa;}
           </div>})}</div>})}
     </>);};
 
+  /* ═══ LEAVE REQUESTS (DepEd CS Form 6) ═══ */
+  const LeavePage=()=>{
+    const LEAVE_TYPES=[
+      {v:"Vacation Leave",days:15,code:"VL"},
+      {v:"Sick Leave",days:15,code:"SL"},
+      {v:"Special Privilege Leave",days:3,code:"SPL"},
+      {v:"Wellness Leave",days:3,code:"WL"},
+      {v:"Maternity Leave",days:105,code:"MAT"},
+      {v:"Paternity Leave",days:7,code:"PAT"},
+      {v:"Bereavement Leave",days:3,code:"BL"},
+      {v:"Emergency Leave",days:5,code:"EL"},
+      {v:"Study Leave",days:0,code:"STL"},
+    ];
+    const statusColors={pending:"#a8640a",approved:"#1f6b4e",declined:"#a2321a",completed:"#0b2a52"};
+    const statusBg={pending:"#faefd8",approved:"#e4efe9",declined:"#f7e2db",completed:"#e8edf5"};
+
+    const daysBetween=(s,e)=>{if(!s||!e)return 0;const d1=new Date(s),d2=new Date(e);return Math.round((d2-d1)/(1000*60*60*24))+1;};
+    const addLeave=()=>{
+      if(!f.lvType||!f.lvStart||!f.lvEnd){alert("Please fill in leave type, start date, and end date");return;}
+      const days=daysBetween(f.lvStart,f.lvEnd);
+      if(days<=0){alert("End date must be after or equal to start date");return;}
+      setLeaves(prev=>[{id:uid(),requester:auth.name,username:auth.username,position:auth.position||auth.role,
+        type:f.lvType,startDate:f.lvStart,endDate:f.lvEnd,days,reason:f.lvReason||"",
+        whereabouts:f.lvWhere||"",commutable:f.lvComm||"No",
+        status:"pending",dateFiled:now(),remarks:""},...prev]);
+      fr();setModal(null);};
+    const updateLeaveStatus=(lid,status,remarks)=>{
+      setLeaves(prev=>prev.map(l=>l.id===lid?{...l,status,remarks:remarks||l.remarks,dateActioned:now(),actionedBy:auth.name}:l));
+      setModal(null);};
+    const deleteLeave=(lid)=>setLeaves(prev=>prev.filter(l=>l.id!==lid));
+
+    // Calculate leave balance for a user
+    const balance=(username,type)=>{
+      const lt=LEAVE_TYPES.find(x=>x.v===type);if(!lt)return 0;
+      const used=leaves.filter(l=>l.username===username&&l.type===type&&(l.status==="approved"||l.status==="completed")).reduce((a,l)=>a+l.days,0);
+      return lt.days-used;};
+
+    // Print CS Form 6
+    const printCS6=(l)=>{
+      const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>CS Form 6 - ${l.requester}</title>
+<style>@page{size:8.5in 13in;margin:0.7in;}*{margin:0;padding:0;box-sizing:border-box;}body{font-family:'Bookman Old Style','Times New Roman',serif;font-size:11pt;padding:0.7in;}
+.hdr{text-align:center;margin-bottom:10pt;}.hdr .r{font-size:10pt;}.hdr .d{font-size:16pt;font-weight:bold;}.hdr .sc{font-size:11pt;font-weight:bold;letter-spacing:1.5px;margin-top:3pt;}
+hr{border:none;border-top:2pt solid #000;margin:4pt 0;}
+.form-title{text-align:center;font-size:14pt;font-weight:bold;margin:12pt 0;text-decoration:underline;}
+.form-sub{text-align:center;font-size:10pt;color:#333;margin-bottom:14pt;}
+.seal{width:0.7in;height:0.7in;object-fit:contain;margin:2pt auto;display:block;}
+table{width:100%;border-collapse:collapse;margin-bottom:10pt;}
+td,th{border:1pt solid #333;padding:6pt 8pt;vertical-align:top;font-size:10pt;}
+.lbl{font-weight:bold;background:#f5f5f5;width:28%;}
+.sig{margin-top:30pt;display:flex;justify-content:space-between;}
+.sig-block{text-align:center;width:45%;}.sig-block .line{border-top:1pt solid #000;margin-top:32pt;padding-top:2pt;font-weight:bold;}
+.sig-img{height:40pt;object-fit:contain;display:block;margin:0 auto;}
+</style></head><body>
+<div class="hdr"><img src="${DEPED_SEAL}" class="seal"/>
+<div class="r">Republic of the Philippines</div><div class="d">Department of Education</div>
+<div class="r">Region VII — Central Visayas · Schools Division of Cebu Province</div>
+<div class="sc">TUNGA ELEMENTARY SCHOOL</div><div class="r">Brgy. Tunga, Moalboal, Cebu · School ID: 119502</div></div>
+<hr/>
+<div class="form-title">APPLICATION FOR LEAVE</div>
+<div class="form-sub">(CS Form No. 6, Revised 2020)</div>
+<table>
+<tr><td class="lbl">1. OFFICE / AGENCY</td><td colspan="3">Tunga Elementary School, Moalboal District</td></tr>
+<tr><td class="lbl">2. NAME</td><td colspan="3">${l.requester}</td></tr>
+<tr><td class="lbl">3. DATE OF FILING</td><td>${l.dateFiled}</td><td class="lbl">4. POSITION</td><td>${l.position}</td></tr>
+<tr><td class="lbl">5. SALARY</td><td colspan="3">____________________________</td></tr>
+<tr><td class="lbl">6.a TYPE OF LEAVE</td><td colspan="3"><strong>${l.type.toUpperCase()}</strong></td></tr>
+<tr><td class="lbl">6.b DETAILS OF LEAVE</td><td colspan="3">${l.reason||"As stated"}</td></tr>
+<tr><td class="lbl">6.c NUMBER OF WORKING DAYS</td><td>${l.days} day(s)</td><td class="lbl">INCLUSIVE DATES</td><td>${l.startDate} to ${l.endDate}</td></tr>
+<tr><td class="lbl">6.d COMMUTATION</td><td>${l.commutable}</td><td class="lbl">WHEREABOUTS</td><td>${l.whereabouts||"Within Philippines"}</td></tr>
+</table>
+<div class="sig">
+<div class="sig-block"><div style="text-align:left;">Signature of Applicant:</div><div class="line">${l.requester.toUpperCase()}</div><div>${l.position}</div></div>
+<div class="sig-block"><div style="text-align:left;">Recommending Approval:</div><img src="${E_SIG}" class="sig-img"/><div class="line" style="margin-top:4pt;">WILLIAM A. BUQUIA, Dev.Ed.D.</div><div>Principal I</div></div>
+</div>
+<table style="margin-top:16pt;"><tr><td style="padding:10pt;">
+<strong>ACTION ON APPLICATION:</strong> ${l.status.toUpperCase()}<br/>
+<strong>Date Actioned:</strong> ${l.dateActioned||"Pending"}<br/>
+${l.remarks?`<strong>Remarks:</strong> ${l.remarks}<br/>`:""}
+</td></tr></table>
+<script>window.onload=function(){setTimeout(function(){window.print();},500);}<\/script></body></html>`;
+      const w=window.open("","_blank","width=850,height=1100");if(w){w.document.write(html);w.document.close();}};
+
+    const myLeaves=isAdmin?leaves:leaves.filter(l=>l.username===auth.username);
+    const pendingCount=leaves.filter(l=>l.status==="pending").length;
+
+    return(<><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12,flexWrap:"wrap",gap:6}}>
+      <h2 style={{fontSize:22,fontWeight:500,fontFamily:"var(--font-serif)",letterSpacing:"-0.02em"}}>Leave Requests {isAdmin&&pendingCount>0&&<Badge color="#a8640a">{pendingCount} pending</Badge>}</h2>
+      <Btn sm onClick={()=>{fr();ff("lvComm","No");setModal("addLeave");}} color="#0b2a52">{IC.plus} File Leave</Btn></div>
+
+      <div style={{background:"var(--brand-1-soft)",borderRadius:10,padding:12,marginBottom:14,fontSize:12,color:"var(--brand-1)"}}>
+        <strong>DepEd Leave Application (CS Form No. 6)</strong> — Submit leave requests under CSC MC 41, s. 1998 and RA 11210 (Maternity Leave). Your request will be reviewed by the Principal. Print CS Form 6 after approval.</div>
+
+      {/* My Leave Balance Summary (for non-admin users) */}
+      {!isAdmin&&<div style={{background:"#fff",borderRadius:12,padding:14,marginBottom:12,boxShadow:"var(--shadow-sm)"}}>
+        <div style={{fontSize:13,fontWeight:600,marginBottom:8,color:"var(--ink-muted)",textTransform:"uppercase",letterSpacing:"0.05em"}}>My Leave Balance</div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(110px,1fr))",gap:8}}>
+          {LEAVE_TYPES.slice(0,5).map(lt=>{const bal=balance(auth.username,lt.v);const color=bal>lt.days*0.5?"#1f6b4e":bal>0?"#a8640a":"#a2321a";
+            return<div key={lt.v} style={{background:"var(--n-25)",borderRadius:8,padding:"8px 12px",borderLeft:`3px solid ${color}`}}>
+              <div style={{fontSize:10,color:"var(--ink-muted)",fontWeight:600}}>{lt.code}</div>
+              <div style={{fontSize:18,fontWeight:700,color,fontFamily:"var(--font-serif)"}}>{bal}<span style={{fontSize:11,color:"var(--ink-muted)",fontWeight:400}}>/{lt.days}</span></div>
+              <div style={{fontSize:10,color:"var(--ink-muted)"}}>days left</div></div>;})}</div></div>}
+
+      {myLeaves.length===0&&<div style={{textAlign:"center",padding:32,color:"var(--ink-faint)",fontStyle:"italic"}}>No leave requests yet.</div>}
+
+      {myLeaves.map(l=><div key={l.id} style={{background:"#fff",borderRadius:12,padding:14,marginBottom:8,borderLeft:`4px solid ${statusColors[l.status]}`,boxShadow:"var(--shadow-sm)"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:6}}>
+          <div style={{flex:1,minWidth:220}}>
+            <div style={{display:"flex",gap:6,alignItems:"center",marginBottom:4,flexWrap:"wrap"}}>
+              <span style={{fontWeight:700,fontSize:15,fontFamily:"var(--font-serif)"}}>{l.requester}</span>
+              <span style={{fontSize:10,padding:"2px 8px",borderRadius:6,background:statusBg[l.status],color:statusColors[l.status],fontWeight:700,textTransform:"uppercase",letterSpacing:"0.05em"}}>{l.status}</span>
+              <span style={{fontSize:11,color:"var(--ink-muted)"}}>· Filed: {l.dateFiled}</span></div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:6,fontSize:12,color:"var(--ink-muted)"}}>
+              <div><strong style={{color:"var(--ink)"}}>{l.type}</strong></div>
+              <div>📅 {l.startDate} → {l.endDate}</div>
+              <div><strong style={{color:"var(--brand-1)"}}>{l.days}</strong> working day(s)</div></div>
+            {l.reason&&<div style={{marginTop:6,fontSize:12,color:"var(--ink-muted)",background:"var(--n-25)",borderRadius:6,padding:"6px 10px"}}>💬 {l.reason}</div>}
+            {l.remarks&&<div style={{marginTop:6,fontSize:12,color:"var(--brand-1)",background:"var(--brand-1-soft)",borderRadius:6,padding:"6px 10px"}}><strong>Principal's Remarks:</strong> {l.remarks}</div>}</div>
+          <div style={{display:"flex",gap:4,flexShrink:0}}>
+            {isAdmin&&l.status==="pending"&&<>
+              <Btn sm color="#1f6b4e" onClick={()=>{ff("lvRemarks","");setModal(`lvA_${l.id}`);}}>{IC.check} Approve</Btn>
+              <Btn sm color="#a2321a" outline onClick={()=>{ff("lvRemarks","");setModal(`lvD_${l.id}`);}}>Decline</Btn></>}
+            {(l.status==="approved"||l.status==="completed")&&<Btn sm color="#0b2a52" outline onClick={()=>printCS6(l)}>{IC.download} CS Form 6</Btn>}
+            {(isAdmin||(l.status==="pending"&&l.username===auth.username))&&<button onClick={()=>deleteLeave(l.id)} style={{background:"none",border:"none",cursor:"pointer",color:"var(--ink-faint)"}}>{IC.trash}</button>}</div></div>
+        <Modal open={modal===`lvA_${l.id}`} onClose={()=>setModal(null)} title="Approve Leave Request">
+          <Inp label="Remarks (optional)" value={f.lvRemarks||""} onChange={v=>ff("lvRemarks",v)} ta ph="e.g. Approved subject to submission of medical certificate..."/>
+          <Btn onClick={()=>updateLeaveStatus(l.id,"approved",f.lvRemarks)} full color="#1f6b4e">Approve Leave</Btn></Modal>
+        <Modal open={modal===`lvD_${l.id}`} onClose={()=>setModal(null)} title="Decline Leave Request">
+          <Inp label="Reason for declining" value={f.lvRemarks||""} onChange={v=>ff("lvRemarks",v)} ta ph="Please provide a reason..."/>
+          <Btn onClick={()=>updateLeaveStatus(l.id,"declined",f.lvRemarks)} full color="#a2321a">Decline Leave</Btn></Modal></div>)}
+
+      <Modal open={modal==="addLeave"} onClose={()=>setModal(null)} title="File Leave Application — CS Form 6" wide>
+        <div style={{background:"var(--brand-1-soft)",borderRadius:8,padding:10,marginBottom:12,fontSize:12,color:"var(--brand-1)"}}>
+          <strong>Filing as:</strong> {auth.name} ({auth.position||auth.role})</div>
+        <Sel label="Type of Leave" value={f.lvType||""} onChange={v=>ff("lvType",v)} options={["Select leave type...",...LEAVE_TYPES.map(lt=>`${lt.v} (${lt.days>0?`${lt.days} days/yr`:"as needed"})`)]}/>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+          <Inp label="Start Date" value={f.lvStart||""} onChange={v=>ff("lvStart",v)} type="date"/>
+          <Inp label="End Date" value={f.lvEnd||""} onChange={v=>ff("lvEnd",v)} type="date"/></div>
+        {f.lvStart&&f.lvEnd&&<div style={{fontSize:12,color:"var(--brand-1)",marginBottom:10,fontWeight:600}}>📅 Total: {daysBetween(f.lvStart,f.lvEnd)} working day(s)</div>}
+        <Inp label="Details / Reason" value={f.lvReason||""} onChange={v=>ff("lvReason",v)} ta ph="Nature of illness, purpose of leave, etc."/>
+        <Inp label="Whereabouts during leave" value={f.lvWhere||""} onChange={v=>ff("lvWhere",v)} ph="Within Philippines / Abroad (specify country)"/>
+        <Sel label="Commutation" value={f.lvComm||"No"} onChange={v=>ff("lvComm",v)} options={["No","Requested"]}/>
+        <Btn onClick={addLeave} full color="#0b2a52">Submit Leave Application</Btn></Modal></>);};
+
   /* ═══ RENDER ═══ */
   const pages={home:<HomePage/>,students:<StudentsPage/>,grades:<GradesPage/>,personnel:<PersonnelPage/>,coordinators:<CoordsPage/>,
+    leaves:<LeavePage/>,
     announcements:<ListPage title="Announcements" items={announcements} setItems={setAnnouncements} withSig={true} fields={[{key:"title",label:"Title",ph:"Title"},{key:"body",label:"Details",ph:"Details...",ta:true}]}/>,
     memos:<MemosPage/>,
     bulletins:<ListPage title="Bulletins" items={bulletins} setItems={setBulletins} fields={[{key:"title",label:"Title",ph:"Title"},{key:"body",label:"Content",ph:"Content...",ta:true}]}/>,
@@ -1285,6 +1431,24 @@ tr:nth-child(even){background:#f5f7fa;}
           <Badge color="#1B4D7E">SY {sy}</Badge>
           <Badge color={isAdmin?"#2E6B4F":"#5B2C6F"}>{auth.role}</Badge></header>
         <div style={{padding:16,maxWidth:960,margin:"0 auto"}}>{pages[page]||<HomePage/>}</div></main>
-      <style>{`@media(min-width:769px){.tes-sidebar{transform:translateX(0)!important}main{margin-left:240px!important}}*{box-sizing:border-box}::-webkit-scrollbar{width:6px}::-webkit-scrollbar-thumb{background:#ccc;border-radius:3px}`}</style>
+      <style>{`
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@300;400;500;600;700&display=swap');
+:root{
+  --n-0:#ffffff;--n-25:#fbfaf7;--n-50:#f6f4ee;--n-100:#eeebe3;--n-200:#d5d0c2;
+  --n-500:#5f5a4c;--n-700:#2a2822;--ink:#1a1814;--ink-muted:#5f5a4c;
+  --brand-1:#0b2a52;--brand-1-soft:#e8edf5;--brand-2:#1f6b4e;--brand-2-soft:#e4efe9;
+  --warning:#a8640a;--warning-soft:#faefd8;--danger:#a2321a;--danger-soft:#f7e2db;
+  --border:rgba(26,24,20,0.08);--shadow-sm:0 1px 2px rgba(26,24,20,0.04),0 2px 6px rgba(26,24,20,0.04);
+  --shadow-md:0 4px 14px rgba(26,24,20,0.06),0 1px 3px rgba(26,24,20,0.04);
+  --font-sans:'Inter',ui-sans-serif,system-ui,sans-serif;
+  --font-serif:'Fraunces',Georgia,serif;
+}
+body{background:var(--n-25)!important;font-family:var(--font-sans)!important;-webkit-font-smoothing:antialiased;color:var(--ink);}
+h1,h2,h3{font-family:var(--font-serif);letter-spacing:-0.02em;font-weight:500;}
+@media(min-width:769px){.tes-sidebar{transform:translateX(0)!important}main{margin-left:240px!important}}
+*{box-sizing:border-box}
+::-webkit-scrollbar{width:6px}::-webkit-scrollbar-thumb{background:#ccc;border-radius:3px}
+button:not([disabled]):hover{filter:brightness(0.95);}
+`}</style>
     </div>);
 }
