@@ -1410,20 +1410,24 @@ ${l.remarks?`<strong>Remarks:</strong> ${l.remarks}<br/>`:""}
   return(
     <div style={{display:"flex",minHeight:"100vh",fontFamily:"'Segoe UI',system-ui,sans-serif",background:"#f4f6f8"}}>
       {sideOpen&&<div onClick={()=>setSideOpen(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,.4)",zIndex:998}}/>}
-      <aside className="tes-sidebar" style={{width:240,background:"#0E2240",color:"#fff",position:"fixed",top:0,bottom:0,left:0,zIndex:999,overflowY:"auto",transition:"transform .25s",transform:sideOpen?"translateX(0)":"translateX(-240px)"}}>
-        <div style={{padding:"14px 12px",borderBottom:"1px solid rgba(255,255,255,.08)",display:"flex",alignItems:"center",gap:10}}>
-          <img src={LOGO} alt="" style={{width:42,height:42,borderRadius:"50%",border:"2px solid rgba(255,255,255,.2)",objectFit:"cover"}}/>
-          <div><div style={{fontSize:13,fontWeight:700}}>Tunga ES</div><div style={{fontSize:10,opacity:.5}}>Moalboal, Cebu · v4.0 · Cloud</div></div></div>
-        <div style={{padding:"8px 10px"}}><select value={sy} onChange={e=>setSy(e.target.value)} style={{width:"100%",padding:"7px 8px",borderRadius:6,border:"1px solid rgba(255,255,255,.15)",background:"rgba(255,255,255,.08)",color:"#fff",fontSize:12,fontFamily:"inherit"}}>
+      <aside className="tes-sidebar" style={{width:240,background:"#0b2a52",color:"#fff",position:"fixed",top:0,bottom:0,left:0,zIndex:999,overflowY:"auto",transition:"transform .25s",transform:sideOpen?"translateX(0)":"translateX(-240px)",paddingBottom:88}}>
+        <div style={{padding:"16px 14px",borderBottom:"1px solid rgba(255,255,255,.1)",display:"flex",alignItems:"center",gap:10}}>
+          <img src={LOGO} alt="" style={{width:42,height:42,borderRadius:"50%",border:"2px solid rgba(255,255,255,.25)",objectFit:"cover"}}/>
+          <div><div style={{fontSize:16,fontWeight:500,fontFamily:"var(--font-serif)",letterSpacing:"-0.01em"}}>Tunga ES</div><div style={{fontSize:10,opacity:.55,letterSpacing:.3}}>Moalboal, Cebu · v4.0 · Cloud</div></div></div>
+        <div style={{padding:"10px 12px"}}><select value={sy} onChange={e=>setSy(e.target.value)} style={{width:"100%",padding:"8px 10px",borderRadius:8,border:"1px solid rgba(255,255,255,.18)",background:"rgba(255,255,255,.08)",color:"#fff",fontSize:12,fontFamily:"inherit",cursor:"pointer"}}>
           {SYS.map(s=><option key={s} value={s} style={{color:"#333"}}>SY {s}</option>)}</select></div>
-        <nav style={{padding:"4px 8px"}}>{nav.map(n=>(
-          <button key={n.id} onClick={()=>{setPage(n.id);setSideOpen(false);}} style={{display:"flex",alignItems:"center",gap:8,width:"100%",padding:"9px 10px",background:page===n.id?"rgba(255,255,255,.12)":"transparent",border:"none",borderRadius:7,color:page===n.id?"#fff":"rgba(255,255,255,.5)",cursor:"pointer",fontSize:12,fontWeight:page===n.id?600:400,textAlign:"left",marginBottom:1,fontFamily:"inherit"}}>
-            <span style={{width:18,display:"flex"}}>{IC[n.icon]}</span>{n.label}
-            {n.id==="co_schedule"&&coRequests.filter(r=>r.status==="pending").length>0&&<span style={{background:"#c0392b",color:"#fff",borderRadius:10,padding:"1px 6px",fontSize:10,fontWeight:700,marginLeft:"auto"}}>{coRequests.filter(r=>r.status==="pending").length}</span>}
+        <nav style={{padding:"4px 10px"}}>{nav.map(n=>(
+          <button key={n.id} onClick={()=>{setPage(n.id);setSideOpen(false);}} style={{display:"flex",alignItems:"center",gap:10,width:"100%",padding:"10px 12px",background:page===n.id?"rgba(255,255,255,.14)":"transparent",border:"none",borderLeft:page===n.id?"3px solid #a8640a":"3px solid transparent",borderRadius:"0 8px 8px 0",color:page===n.id?"#fff":"rgba(255,255,255,.72)",cursor:"pointer",fontSize:13,fontWeight:page===n.id?600:400,textAlign:"left",marginBottom:2,fontFamily:"inherit",transition:"all .15s"}}>
+            <span style={{width:18,display:"flex",opacity:page===n.id?1:0.85}}>{IC[n.icon]}</span>{n.label}
+            {n.id==="co_schedule"&&coRequests.filter(r=>r.status==="pending").length>0&&<span style={{background:"#c0392b",color:"#fff",borderRadius:10,padding:"1px 7px",fontSize:10,fontWeight:700,marginLeft:"auto"}}>{coRequests.filter(r=>r.status==="pending").length}</span>}
           </button>))}</nav>
-        <div style={{padding:12,borderTop:"1px solid rgba(255,255,255,.08)",position:"absolute",bottom:0,left:0,right:0}}>
-          <button onClick={()=>{api.logout();clearStoreCache();setAuth(null);setPage("home");}} style={{display:"flex",alignItems:"center",gap:6,background:"none",border:"none",color:"rgba(255,255,255,.4)",cursor:"pointer",fontSize:12,fontFamily:"inherit"}}>{IC.log} Sign out</button>
-          <div style={{fontSize:10,opacity:.3,marginTop:6}}>{auth.name} ({auth.role})</div></div></aside>
+        <div style={{padding:14,borderTop:"1px solid rgba(255,255,255,.1)",background:"#081e3f",position:"absolute",bottom:0,left:0,right:0}}>
+          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
+            <div style={{width:28,height:28,borderRadius:"50%",background:"#1f6b4e",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,color:"#fff",flexShrink:0}}>{auth.name?.[0]?.toUpperCase()||"U"}</div>
+            <div style={{minWidth:0,flex:1}}><div style={{fontSize:12,fontWeight:600,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{auth.name}</div><div style={{fontSize:10,opacity:.6,textTransform:"capitalize"}}>{auth.role}</div></div>
+          </div>
+          <button onClick={()=>{api.logout();clearStoreCache();setAuth(null);setPage("home");}} style={{display:"flex",alignItems:"center",justifyContent:"center",gap:6,width:"100%",padding:"7px 10px",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.15)",borderRadius:7,color:"rgba(255,255,255,.78)",cursor:"pointer",fontSize:11,fontWeight:500,fontFamily:"inherit",transition:"all .15s"}}>{IC.log} Sign out</button>
+        </div></aside>
       <main style={{flex:1,marginLeft:0,minWidth:0}}>
         <header style={{background:"#fff",padding:"10px 16px",display:"flex",alignItems:"center",gap:10,borderBottom:"1px solid #e4e7ec",position:"sticky",top:0,zIndex:100}}>
           <button onClick={()=>setSideOpen(!sideOpen)} style={{background:"none",border:"none",cursor:"pointer",color:"#333",padding:2}}>{IC.menu}</button>
