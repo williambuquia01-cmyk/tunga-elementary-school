@@ -325,6 +325,9 @@ export default function App(){
   const[f,setF]=useState({});
   const ff=(k,v)=>setF(p=>({...p,[k]:v}));
   const fr=()=>setF({});
+  // Hoisted page-level states (survive re-renders so typing in modals doesn't kick users out)
+  const[ppssSel,setPpssSel]=useState(null);
+  const[listModalCfg,setListModalCfg]=useState(null); // {title, items, setItems, fields, withSig}
 
   // ── GLOBAL STORES (SY-scoped) ──
   const[users,setUsers]=useStore("users_v3",[]);
@@ -630,19 +633,15 @@ th{background:#1B4D7E;color:#fff;font-size:9pt;}.sum{background:#e8f0fe;font-wei
 
   /* ═══ GENERIC LIST PAGE (for Announcements & Bulletins — with optional e-sig) ═══ */
   const ListPage=({title,items,setItems,fields,withSig})=>{
-    const add=()=>{if(!f.title?.trim())return;setItems(prev=>[{id:uid(),date:now(),signedBy:isAdmin?"admin":auth.name,...Object.fromEntries(fields.map(x=>[x.key,f[x.key]||""]))},...prev]);fr();setModal(null);};
     return(<><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-      <h2 style={{fontSize:20,fontWeight:700}}>{title}</h2><Btn sm onClick={()=>{fr();setModal("addL");}}>{IC.plus} New</Btn></div>
+      <h2 style={{fontSize:20,fontWeight:700}}>{title}</h2><Btn sm onClick={()=>{fr();setListModalCfg({title,items,setItems,fields,withSig});setModal("addL");}}>{IC.plus} New</Btn></div>
       {items.length===0&&<div style={{textAlign:"center",padding:32,color:"#ccc"}}>No {title.toLowerCase()} yet.</div>}
       {items.map(item=><div key={item.id} style={{background:"#fff",borderRadius:12,padding:14,marginBottom:8,borderLeft:"4px solid #2E6B4F"}}>
         <div style={{display:"flex",justifyContent:"space-between"}}><div><h3 style={{fontSize:15,fontWeight:600,margin:0}}>{item.title}</h3>
           <div style={{fontSize:11,color:"#999",marginTop:2}}>{item.date}{item.from&&` · From: ${item.from}`}{item.to&&` · To: ${item.to}`}</div></div>
           {isAdmin&&<button onClick={()=>setItems(prev=>prev.filter(x=>x.id!==item.id))} style={{background:"none",border:"none",cursor:"pointer",color:"#999"}}>{IC.trash}</button>}</div>
         {item.body&&<p style={{margin:"6px 0 0",fontSize:13,color:"#555",lineHeight:1.5}}>{item.body}</p>}
-        {withSig&&<SignBlock show={item.signedBy==="admin"}/>}</div>)}
-      <Modal open={modal==="addL"} onClose={()=>setModal(null)} title={`New ${title.slice(0,-1)}`}>
-        {fields.map(x=><Inp key={x.key} label={x.label} value={f[x.key]||""} onChange={v=>ff(x.key,v)} ph={x.ph} ta={x.ta}/>)}
-        <Btn onClick={add} full>Save</Btn></Modal></>);};
+        {withSig&&<SignBlock show={item.signedBy==="admin"}/>}</div>)}</>);};
 
   /* ═══ MEMOS (UPGRADED — file attachment + DepEd PDF download) ═══ */
   const MemosPage=()=>{
@@ -749,20 +748,7 @@ body{font-family:'Bookman Old Style','Times New Roman',Georgia,serif;font-size:1
         {(item.files||[]).length>0&&<div style={{marginTop:8,paddingTop:8,borderTop:"1px solid #f0f0f0"}}>
           <div style={{fontSize:12,fontWeight:600,color:"#1B4D7E",marginBottom:4}}>Attachments ({item.files.length})</div>
           <FileList files={item.files} onDelete={isAdmin?(fi)=>delMemoFile(mi,fi):null}/></div>}
-        <SignBlock show={item.signedBy==="admin"}/></div>)}
-      <Modal open={modal==="addMemo"} onClose={()=>setModal(null)} title="New DepEd Memorandum" wide>
-        <div style={{background:"#e8f0fe",borderRadius:8,padding:10,marginBottom:14,fontSize:12,color:"#1B4D7E"}}>
-          <strong>DepEd Format:</strong> This memo will auto-generate a downloadable PDF following the DepEd Manual of Style (DMOS) with official letterhead, your e-signature, and proper formatting. If "To" is left blank, it defaults to "All Teachers."</div>
-        <Inp label="Memo Number (optional)" value={f.mNum||""} onChange={v=>ff("mNum",v)} ph="e.g. 001"/>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-          <Inp label="From" value={f.mFrom||""} onChange={v=>ff("mFrom",v)} ph="WILLIAM A. BUQUIA, Dev.Ed.D."/>
-          <Inp label="To" value={f.mTo||""} onChange={v=>ff("mTo",v)} ph="All Teachers, Tunga Elementary School"/></div>
-        <Inp label="Subject (will appear in ALL CAPS)" value={f.mSubj||""} onChange={v=>ff("mSubj",v)} ph="Subject of the memorandum"/>
-        <Inp label="Body" value={f.mBody||""} onChange={v=>ff("mBody",v)} ph="Type memo content here. Press Enter for new paragraphs..." ta/>
-        <div style={{marginBottom:12}}><label style={{fontSize:13,fontWeight:500,color:"#666",marginBottom:4,display:"block"}}>Attachments (optional)</label>
-          <FileList files={f.mFiles||[]} onDelete={(i)=>ff("mFiles",(f.mFiles||[]).filter((_,j)=>j!==i))}/>
-          <div style={{marginTop:6}}><FileUploader onUpload={addFile} accept=".pdf,.docx,.xlsx,.jpg,.jpeg,.png,.pptx"/></div></div>
-        <Btn onClick={add} full>Save & Generate Memo</Btn></Modal></>);};
+        <SignBlock show={item.signedBy==="admin"}/></div>)}</>);};
 
   /* ═══ COORDINATORS (UPGRADED — with report folders & file upload) ═══ */
   const CoordsPage=()=>{
@@ -850,19 +836,15 @@ body{font-family:'Bookman Old Style','Times New Roman',Georgia,serif;font-size:1
 
   /* ═══ PPSSH (UPGRADED — proper strand names + file upload) ═══ */
   const PPSSHPage=()=>{
-    const[sel,setSel]=useState(null);const dom=sel!==null?PPSSH.find(d=>d.id===sel):null;
-    const addMov=(did,sCode,file)=>{const k=`${did}-${sCode}`;
-      setPpsMov(prev=>({...prev,[k]:[...(prev[k]||[]),{...file,id:uid(),teacher:f.ppt||"Principal"}]}));fr();setModal(null);};
-    const addText=(did,sCode)=>{if(!f.mn?.trim())return;const k=`${did}-${sCode}`;
-      setPpsMov(prev=>({...prev,[k]:[...(prev[k]||[]),{id:uid(),name:f.mn.trim(),teacher:f.ppt||"Principal",date:nowS(),type:"text/plain",size:0}]}));fr();setModal(null);};
+    const dom=ppssSel!==null?PPSSH.find(d=>d.id===ppssSel):null;
     const delMov=(did,sCode,idx)=>{const k=`${did}-${sCode}`;setPpsMov(prev=>({...prev,[k]:(prev[k]||[]).filter((_,i)=>i!==idx)}));};
     return(<><h2 style={{fontSize:20,fontWeight:700,marginBottom:12}}>PPSSH MOVs — 6 Domains</h2>
       {!dom?<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(190px,1fr))",gap:10}}>
         {PPSSH.map(d=>{const tot=Object.keys(ppsMov).filter(k=>k.startsWith(`${d.id}-`)).reduce((a,k)=>a+ppsMov[k].length,0);
-          return<div key={d.id} onClick={()=>setSel(d.id)} style={{background:"#fff",borderRadius:14,padding:16,cursor:"pointer",borderLeft:`5px solid ${d.color}`,transition:"box-shadow .15s"}}>
+          return<div key={d.id} onClick={()=>setPpssSel(d.id)} style={{background:"#fff",borderRadius:14,padding:16,cursor:"pointer",borderLeft:`5px solid ${d.color}`,transition:"box-shadow .15s"}}>
             <Badge color={d.color}>Domain {d.id}</Badge><div style={{fontSize:14,fontWeight:600,marginTop:6,textTransform:"capitalize"}}>{d.name}</div>
             <div style={{fontSize:11,color:"#999",marginTop:4}}>{d.strands.length} strands · <strong>{tot} MOVs</strong></div></div>})}</div>
-      :(<><button onClick={()=>setSel(null)} style={{background:"none",border:"none",cursor:"pointer",fontSize:13,color:"#666",display:"flex",alignItems:"center",gap:4,marginBottom:10,fontFamily:"inherit"}}>{IC.back} All Domains</button>
+      :(<><button onClick={()=>setPpssSel(null)} style={{background:"none",border:"none",cursor:"pointer",fontSize:13,color:"#666",display:"flex",alignItems:"center",gap:4,marginBottom:10,fontFamily:"inherit"}}>{IC.back} All Domains</button>
         <div style={{background:`linear-gradient(135deg,${dom.color},${dom.color}cc)`,borderRadius:14,padding:"16px 20px",color:"#fff",marginBottom:14}}>
           <div style={{fontSize:11,opacity:.7}}>Domain {dom.id}</div><h3 style={{margin:"2px 0",fontSize:17,fontWeight:700,textTransform:"capitalize"}}>{dom.name}</h3>
           <div style={{fontSize:12,opacity:.65}}>{dom.strands.length} strands</div></div>
@@ -875,14 +857,7 @@ body{font-family:'Bookman Old Style','Times New Roman',Georgia,serif;font-size:1
               <div style={{display:"flex",gap:4,flexShrink:0}}>
                 <button onClick={()=>{fr();ff("ppt","Principal");setModal(`ppU_${dom.id}_${strand.code}`);}} style={{width:28,height:28,borderRadius:6,background:dom.color,color:"#fff",border:"none",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}} title="Upload file">{IC.upload}</button>
                 <button onClick={()=>{fr();ff("ppt","Principal");setModal(`ppT_${dom.id}_${strand.code}`);}} style={{width:28,height:28,borderRadius:6,background:"#f0f4f8",color:dom.color,border:`1px solid ${dom.color}`,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}} title="Add text entry">{IC.plus}</button></div></div>
-            <FileList files={sm} onDelete={isAdmin?(idx)=>delMov(dom.id,strand.code,idx):null}/>
-            <Modal open={modal===`ppU_${dom.id}_${strand.code}`} onClose={()=>setModal(null)} title={`Upload MOV — ${strand.code}`}>
-              <Inp label="Attributed to" value={f.ppt||""} onChange={v=>ff("ppt",v)} ph="Principal / Teacher name"/>
-              <FileUploader onUpload={(file)=>{addMov(dom.id,strand.code,{...file,teacher:f.ppt||"Principal"});}} accept=".pdf,.docx,.xlsx,.jpg,.jpeg,.png,.pptx"/></Modal>
-            <Modal open={modal===`ppT_${dom.id}_${strand.code}`} onClose={()=>setModal(null)} title={`Add MOV entry — ${strand.code}`}>
-              <Inp label="MOV Document Name" value={f.mn||""} onChange={v=>ff("mn",v)} ph="e.g. Signed SIP, School memo..."/>
-              <Inp label="Attributed to" value={f.ppt||""} onChange={v=>ff("ppt",v)} ph="Principal"/>
-              <Btn onClick={()=>addText(dom.id,strand.code)} full color={dom.color}>Add MOV</Btn></Modal></div>})}</>)}</>);};
+            <FileList files={sm} onDelete={isAdmin?(idx)=>delMov(dom.id,strand.code,idx):null}/></div>})}</>)}</>);};
 
   /* ═══ TEACHER MOVs ═══ */
   const TmovPage=()=>{
@@ -1435,6 +1410,32 @@ ${l.remarks?`<strong>Remarks:</strong> ${l.remarks}<br/>`:""}
           <Badge color="#1B4D7E">SY {sy}</Badge>
           <Badge color={isAdmin?"#2E6B4F":"#5B2C6F"}>{auth.role}</Badge></header>
         <div style={{padding:16,maxWidth:960,margin:"0 auto"}}>{pages[page]||<HomePage/>}</div></main>
+      {/* ═══ HOISTED MODALS (keep inputs mounted — fixes typing lag & modal-closing-on-keystroke) ═══ */}
+      <Modal open={modal==="addMemo"} onClose={()=>setModal(null)} title="New DepEd Memorandum" wide>
+        <div style={{background:"#e8f0fe",borderRadius:8,padding:10,marginBottom:14,fontSize:12,color:"#1B4D7E"}}>
+          <strong>DepEd Format:</strong> This memo will auto-generate a downloadable PDF following the DepEd Manual of Style (DMOS) with official letterhead, your e-signature, and proper formatting. If "To" is left blank, it defaults to "All Teachers."</div>
+        <Inp label="Memo Number (optional)" value={f.mNum||""} onChange={v=>ff("mNum",v)} ph="e.g. 001"/>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+          <Inp label="From" value={f.mFrom||""} onChange={v=>ff("mFrom",v)} ph="WILLIAM A. BUQUIA, Dev.Ed.D."/>
+          <Inp label="To" value={f.mTo||""} onChange={v=>ff("mTo",v)} ph="All Teachers, Tunga Elementary School"/></div>
+        <Inp label="Subject (will appear in ALL CAPS)" value={f.mSubj||""} onChange={v=>ff("mSubj",v)} ph="Subject of the memorandum"/>
+        <Inp label="Body" value={f.mBody||""} onChange={v=>ff("mBody",v)} ph="Type memo content here. Press Enter for new paragraphs..." ta/>
+        <div style={{marginBottom:12}}><label style={{fontSize:13,fontWeight:500,color:"#666",marginBottom:4,display:"block"}}>Attachments (optional)</label>
+          <FileList files={f.mFiles||[]} onDelete={(i)=>ff("mFiles",(f.mFiles||[]).filter((_,j)=>j!==i))}/>
+          <div style={{marginTop:6}}><FileUploader onUpload={(file)=>ff("mFiles",[...(f.mFiles||[]),file])} accept=".pdf,.docx,.xlsx,.jpg,.jpeg,.png,.pptx"/></div></div>
+        <Btn onClick={()=>{if(!f.mSubj?.trim())return;const toVal=f.mTo?.trim()||"All Teachers, Tunga Elementary School";setMemos(prev=>[{id:uid(),date:now(),subject:f.mSubj.trim(),from:f.mFrom||"WILLIAM A. BUQUIA, Dev.Ed.D.",to:toVal,body:f.mBody||"",files:f.mFiles||[],signedBy:isAdmin?"admin":auth.name,memoNum:f.mNum||""},...prev]);fr();setModal(null);}} full>Save & Generate Memo</Btn></Modal>
+      {listModalCfg&&<Modal open={modal==="addL"} onClose={()=>setModal(null)} title={`New ${listModalCfg.title.slice(0,-1)}`}>
+        {listModalCfg.fields.map(x=><Inp key={x.key} label={x.label} value={f[x.key]||""} onChange={v=>ff(x.key,v)} ph={x.ph} ta={x.ta}/>)}
+        <Btn onClick={()=>{if(!f.title?.trim())return;listModalCfg.setItems(prev=>[{id:uid(),date:now(),signedBy:isAdmin?"admin":auth.name,...Object.fromEntries(listModalCfg.fields.map(x=>[x.key,f[x.key]||""]))},...prev]);fr();setModal(null);}} full>Save</Btn></Modal>}
+      {modal&&modal.startsWith("ppU_")&&(()=>{const[,did,sCode]=modal.split("_");const d=PPSSH.find(x=>x.id===Number(did));return(
+        <Modal open={true} onClose={()=>setModal(null)} title={`Upload MOV — ${sCode}`}>
+          <Inp label="Attributed to" value={f.ppt||""} onChange={v=>ff("ppt",v)} ph="Principal / Teacher name"/>
+          <FileUploader onUpload={(file)=>{const k=`${did}-${sCode}`;setPpsMov(prev=>({...prev,[k]:[...(prev[k]||[]),{...file,id:uid(),teacher:f.ppt||"Principal"}]}));fr();setModal(null);}} accept=".pdf,.docx,.xlsx,.jpg,.jpeg,.png,.pptx"/></Modal>);})()}
+      {modal&&modal.startsWith("ppT_")&&(()=>{const[,did,sCode]=modal.split("_");const d=PPSSH.find(x=>x.id===Number(did));return(
+        <Modal open={true} onClose={()=>setModal(null)} title={`Add MOV entry — ${sCode}`}>
+          <Inp label="MOV Document Name" value={f.mn||""} onChange={v=>ff("mn",v)} ph="e.g. Signed SIP, School memo..."/>
+          <Inp label="Attributed to" value={f.ppt||""} onChange={v=>ff("ppt",v)} ph="Principal"/>
+          <Btn onClick={()=>{if(!f.mn?.trim())return;const k=`${did}-${sCode}`;setPpsMov(prev=>({...prev,[k]:[...(prev[k]||[]),{id:uid(),name:f.mn.trim(),teacher:f.ppt||"Principal",date:nowS(),type:"text/plain",size:0}]}));fr();setModal(null);}} full color={d?.color||"#0b2a52"}>Add MOV</Btn></Modal>);})()}
       <style>{`
 @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@300;400;500;600;700&display=swap');
 :root{
