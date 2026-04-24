@@ -327,6 +327,8 @@ export default function App(){
   const fr=()=>setF({});
   // Hoisted page-level states (survive re-renders so typing in modals doesn't kick users out)
   const[ppssSel,setPpssSel]=useState(null);
+  const[ppstSel,setPpstSel]=useState(null);
+  const[ppssExpandedStrand,setPpssExpandedStrand]=useState(null); // "did-code" or null
   const[listModalCfg,setListModalCfg]=useState(null); // {title, items, setItems, fields, withSig}
 
   // ── GLOBAL STORES (SY-scoped) ──
@@ -339,6 +341,7 @@ export default function App(){
   const[mooe,setMooe]=useStore(`mooe3_${sy}`,{});
   const[reportMods,setReportMods]=useStore(`rmod3_${sy}`,[]);
   const[ppsMov,setPpsMov]=useStore(`ppssh3_${sy}`,{});
+  const[ppsMovSubs,setPpsMovSubs]=useStore(`ppsub3_${sy}`,{}); // sub-indicators: { "2-2.1": [{code:"2.1.1",label:"...",files:[...]}] }
   const[tmovCats,setTmovCats]=useStore(`tmov3_${sy}`,[]);
   const[formTemplates,setFormTemplates]=useStore(`forms3_${sy}`,[]);
   const[coRequests,setCoRequests]=useStore(`co3_${sy}`,[]);
@@ -368,10 +371,10 @@ export default function App(){
 
   const canAccess=(navId)=>{
     if(isAdmin) return true;
-    const always=["home","announcements","memos","bulletins","co_schedule","leaves"];
+    const always=["home","announcements","memos","bulletins","co_schedule","leaves","tmov","ppst","ppssh"];
     if(always.includes(navId)) return true;
     if(navId==="students"||navId==="grades"||navId==="depedforms") return (auth.assignedSections||[]).length>0;
-    if(navId==="reports"||navId==="tmov"||navId==="forms"||navId==="ppssh") return (auth.coordinatorOf||[]).length>0;
+    if(navId==="reports"||navId==="forms") return (auth.coordinatorOf||[]).length>0;
     return false;
   };
 
@@ -811,19 +814,30 @@ body{font-family:'Bookman Old Style','Times New Roman',Georgia,serif;font-size:1
     const addM=()=>{if(!f.rn?.trim())return;setReportMods(prev=>[...prev,{id:uid(),name:f.rn.trim(),color:f.rc||"#1B4D7E",subs:[],files:[]}]);fr();setModal(null);};
     const addS=mid=>{if(!f.rs?.trim())return;setReportMods(prev=>prev.map(m=>m.id===mid?{...m,subs:[...m.subs,{id:uid(),name:f.rs.trim(),files:[]}]}:m));fr();setModal(null);};
     const addRepFile=(mid,sid,file)=>{setReportMods(prev=>prev.map(m=>{if(m.id!==mid)return m;if(sid)return{...m,subs:m.subs.map(s=>s.id===sid?{...s,files:[...s.files,{...file,id:uid()}]}:s)};return{...m,files:[...m.files,{...file,id:uid()}]};}));setModal(null);};
+    const delModule=(mid)=>{if(!confirm("Delete this module and ALL its sub-reports and files? This cannot be undone."))return;setReportMods(prev=>prev.filter(m=>m.id!==mid));if(vm===mid)setVm(null);};
+    const delSub=(mid,sid)=>{if(!confirm("Delete this sub-report and its files?"))return;setReportMods(prev=>prev.map(m=>m.id===mid?{...m,subs:m.subs.filter(s=>s.id!==sid)}:m));};
     return(<><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
       <h2 style={{fontSize:20,fontWeight:700}}>Report Modules</h2>{isAdmin&&<Btn sm onClick={()=>{fr();setModal("addRM");}}>{IC.plus} New</Btn>}</div>
       {!cur?<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(130px,1fr))",gap:10}}>
-        {reportMods.map(m=><div key={m.id} onClick={()=>setVm(m.id)} style={{background:m.color,borderRadius:14,padding:"18px 14px",cursor:"pointer",textAlign:"center",color:"#fff"}}>
-          <div style={{fontSize:13,fontWeight:700}}>{m.name}</div><div style={{fontSize:11,opacity:.7}}>{m.subs.length} sub-reports</div></div>)}
+        {reportMods.map(m=><div key={m.id} style={{background:m.color,borderRadius:14,padding:"18px 14px",cursor:"pointer",textAlign:"center",color:"#fff",position:"relative"}}>
+          <div onClick={()=>setVm(m.id)} style={{cursor:"pointer"}}><div style={{fontSize:13,fontWeight:700}}>{m.name}</div><div style={{fontSize:11,opacity:.7}}>{m.subs.length} sub-reports</div></div>
+          {isAdmin&&<button onClick={e=>{e.stopPropagation();delModule(m.id);}} style={{position:"absolute",top:6,right:6,background:"rgba(0,0,0,.25)",border:"none",cursor:"pointer",color:"#fff",padding:4,borderRadius:4,display:"flex"}} title="Delete module">{IC.trash}</button>}</div>)}
         {reportMods.length===0&&<div style={{gridColumn:"1/-1",textAlign:"center",padding:32,color:"#ccc"}}>Create DRRM, GAD, SBFP, etc.</div>}</div>
       :(<><button onClick={()=>setVm(null)} style={{background:"none",border:"none",cursor:"pointer",fontSize:13,color:"#666",display:"flex",alignItems:"center",gap:4,marginBottom:10,fontFamily:"inherit"}}>{IC.back} Back</button>
-        <div style={{display:"flex",gap:8,marginBottom:12}}><Btn sm onClick={()=>{fr();setModal("addRS");}} color={cur.color}>{IC.plus} Sub-report</Btn>
-          <Btn sm outline onClick={()=>setModal("addRF_root")} color={cur.color}>{IC.upload} Upload</Btn></div>
+        <div style={{display:"flex",gap:8,marginBottom:12,alignItems:"center"}}>
+          <h3 style={{margin:0,fontSize:16,fontWeight:700,color:cur.color,flex:1}}>{cur.name}</h3>
+          {isAdmin&&<Btn sm onClick={()=>{fr();setModal("addRS");}} color={cur.color}>{IC.plus} Sub-report</Btn>}
+          <Btn sm outline onClick={()=>setModal("addRF_root")} color={cur.color}>{IC.upload} Upload</Btn>
+          {isAdmin&&<button onClick={()=>delModule(cur.id)} style={{background:"none",border:"1px solid #c0392b",borderRadius:8,padding:"6px 10px",cursor:"pointer",color:"#c0392b",display:"flex",alignItems:"center",gap:4,fontSize:12,fontFamily:"inherit"}} title="Delete entire module">{IC.trash} Delete module</button>}</div>
+        {cur.files?.length>0&&<div style={{background:"#fff",borderRadius:10,padding:12,marginBottom:8,borderLeft:`4px solid ${cur.color}`}}>
+          <div style={{fontWeight:600,marginBottom:6,fontSize:13,color:"#666"}}>Root files ({cur.files.length})</div>
+          <FileList files={cur.files}/></div>}
         {cur.subs.map(sub=><div key={sub.id} style={{background:"#fff",borderRadius:10,padding:12,marginBottom:8}}>
-          <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
             <div style={{fontWeight:600}}>{sub.name} ({sub.files.length})</div>
-            <Btn sm outline onClick={()=>setModal(`addRF_${sub.id}`)} color={cur.color}>{IC.upload}</Btn></div>
+            <div style={{display:"flex",gap:4}}>
+              <Btn sm outline onClick={()=>setModal(`addRF_${sub.id}`)} color={cur.color}>{IC.upload}</Btn>
+              {isAdmin&&<button onClick={()=>delSub(cur.id,sub.id)} style={{background:"none",border:"none",cursor:"pointer",color:"#c0392b"}} title="Delete sub-report">{IC.trash}</button>}</div></div>
           <FileList files={sub.files}/></div>)}
         <Modal open={modal?.startsWith("addRF")} onClose={()=>setModal(null)} title="Upload file">
           <FileUploader onUpload={(file)=>{if(!cur)return;const sid=modal.split("_").slice(1).join("_");addRepFile(cur.id,sid==="root"?null:sid,file);}}/></Modal></>)}
@@ -838,6 +852,8 @@ body{font-family:'Bookman Old Style','Times New Roman',Georgia,serif;font-size:1
   const PPSSHPage=()=>{
     const dom=ppssSel!==null?PPSSH.find(d=>d.id===ppssSel):null;
     const delMov=(did,sCode,idx)=>{const k=`${did}-${sCode}`;setPpsMov(prev=>({...prev,[k]:(prev[k]||[]).filter((_,i)=>i!==idx)}));};
+    const delSubMov=(did,sCode,subCode,idx)=>{const k=`${did}-${sCode}`;setPpsMovSubs(prev=>({...prev,[k]:(prev[k]||[]).map(s=>s.code===subCode?{...s,files:s.files.filter((_,i)=>i!==idx)}:s)}));};
+    const delSubIndicator=(did,sCode,subCode)=>{if(!confirm(`Delete sub-indicator ${subCode} and its files?`))return;const k=`${did}-${sCode}`;setPpsMovSubs(prev=>({...prev,[k]:(prev[k]||[]).filter(s=>s.code!==subCode)}));};
     return(<><h2 style={{fontSize:20,fontWeight:700,marginBottom:12}}>PPSSH MOVs — 6 Domains</h2>
       {!dom?<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(190px,1fr))",gap:10}}>
         {PPSSH.map(d=>{const tot=Object.keys(ppsMov).filter(k=>k.startsWith(`${d.id}-`)).reduce((a,k)=>a+ppsMov[k].length,0);
@@ -848,16 +864,31 @@ body{font-family:'Bookman Old Style','Times New Roman',Georgia,serif;font-size:1
         <div style={{background:`linear-gradient(135deg,${dom.color},${dom.color}cc)`,borderRadius:14,padding:"16px 20px",color:"#fff",marginBottom:14}}>
           <div style={{fontSize:11,opacity:.7}}>Domain {dom.id}</div><h3 style={{margin:"2px 0",fontSize:17,fontWeight:700,textTransform:"capitalize"}}>{dom.name}</h3>
           <div style={{fontSize:12,opacity:.65}}>{dom.strands.length} strands</div></div>
-        {dom.strands.map(strand=>{const k=`${dom.id}-${strand.code}`;const sm=ppsMov[k]||[];
+        {dom.strands.map(strand=>{const k=`${dom.id}-${strand.code}`;const sm=ppsMov[k]||[];const subs=ppsMovSubs[k]||[];const expanded=ppssExpandedStrand===k;
           return<div key={strand.code} style={{background:"#fff",borderRadius:10,padding:"12px 14px",marginBottom:8}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:4}}>
               <div style={{flex:1}}><span style={{fontWeight:700,color:dom.color,fontSize:14}}>{strand.code}</span>
                 <span style={{fontSize:13,color:"#333",marginLeft:6}}>{strand.label}</span>
-                <Badge>{sm.length}</Badge></div>
+                <Badge>{sm.length}{subs.length>0&&` +${subs.reduce((a,s)=>a+s.files.length,0)} sub`}</Badge></div>
               <div style={{display:"flex",gap:4,flexShrink:0}}>
+                <button onClick={()=>setPpssExpandedStrand(expanded?null:k)} style={{width:28,height:28,borderRadius:6,background:expanded?dom.color:"#f0f4f8",color:expanded?"#fff":dom.color,border:`1px solid ${dom.color}`,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700}} title="Sub-indicators (e.g. 2.1.1)">{subs.length>0?subs.length:"▸"}</button>
                 <button onClick={()=>{fr();ff("ppt","Principal");setModal(`ppU_${dom.id}_${strand.code}`);}} style={{width:28,height:28,borderRadius:6,background:dom.color,color:"#fff",border:"none",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}} title="Upload file">{IC.upload}</button>
                 <button onClick={()=>{fr();ff("ppt","Principal");setModal(`ppT_${dom.id}_${strand.code}`);}} style={{width:28,height:28,borderRadius:6,background:"#f0f4f8",color:dom.color,border:`1px solid ${dom.color}`,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}} title="Add text entry">{IC.plus}</button></div></div>
-            <FileList files={sm} onDelete={isAdmin?(idx)=>delMov(dom.id,strand.code,idx):null}/></div>})}</>)}</>);};
+            <FileList files={sm} onDelete={isAdmin?(idx)=>delMov(dom.id,strand.code,idx):null}/>
+            {expanded&&<div style={{marginTop:10,paddingTop:10,borderTop:"1px dashed #e4e7ec",paddingLeft:14,borderLeft:`2px solid ${dom.color}33`}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                <div style={{fontSize:12,fontWeight:600,color:"#666",textTransform:"uppercase",letterSpacing:"0.05em"}}>Sub-indicators</div>
+                <Btn sm outline color={dom.color} onClick={()=>{fr();ff("subCode",`${strand.code}.${subs.length+1}`);setModal(`ppSubAdd_${dom.id}_${strand.code}`);}}>{IC.plus} Add sub-indicator</Btn></div>
+              {subs.length===0&&<div style={{fontSize:12,color:"#999",fontStyle:"italic",padding:"4px 0"}}>No sub-indicators yet. Add {strand.code}.1, {strand.code}.2, etc.</div>}
+              {subs.map(sub=><div key={sub.code} style={{background:"#fafbfc",borderRadius:8,padding:"10px 12px",marginBottom:6,border:"1px solid #eee"}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:4}}>
+                  <div style={{flex:1}}><span style={{fontWeight:700,color:dom.color,fontSize:13}}>{sub.code}</span>
+                    {sub.label&&<span style={{fontSize:12,color:"#555",marginLeft:6}}>{sub.label}</span>}
+                    <Badge>{sub.files.length}</Badge></div>
+                  <div style={{display:"flex",gap:3}}>
+                    <button onClick={()=>{fr();ff("ppt","Principal");setModal(`ppSubU_${dom.id}_${strand.code}_${sub.code}`);}} style={{width:24,height:24,borderRadius:5,background:dom.color,color:"#fff",border:"none",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}} title="Upload to sub-indicator">{IC.upload}</button>
+                    {isAdmin&&<button onClick={()=>delSubIndicator(dom.id,strand.code,sub.code)} style={{background:"none",border:"none",cursor:"pointer",color:"#c0392b",padding:2}} title="Delete sub-indicator">{IC.trash}</button>}</div></div>
+                <FileList files={sub.files} onDelete={isAdmin?(idx)=>delSubMov(dom.id,strand.code,sub.code,idx):null}/></div>)}</div>}</div>})}</>)}</>);};
 
   /* ═══ TEACHER MOVs ═══ */
   const TmovPage=()=>{
@@ -972,7 +1003,7 @@ body{font-family:'Bookman Old Style','Times New Roman',Georgia,serif;font-size:1
 
   /* ═══ PPST MOVs (Philippine Professional Standards for Teachers) ═══ */
   const PPSTPage=()=>{
-    const[sel,setSel]=useState(null);const dom=sel!==null?PPST.find(d=>d.id===sel):null;
+    const dom=ppstSel!==null?PPST.find(d=>d.id===ppstSel):null;
     const addMov=(did,sCode,file)=>{const k=`t${did}-${sCode}`;
       setPpstMov(prev=>({...prev,[k]:[...(prev[k]||[]),{...file,id:uid(),teacher:f.ptt||""}]}));fr();setModal(null);};
     const addText=(did,sCode)=>{if(!f.tmn?.trim())return;const k=`t${did}-${sCode}`;
@@ -982,10 +1013,10 @@ body{font-family:'Bookman Old Style','Times New Roman',Georgia,serif;font-size:1
       <p style={{color:"#666",fontSize:12,margin:"0 0 12px"}}>Philippine Professional Standards for Teachers · SY {sy}</p>
       {!dom?<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(190px,1fr))",gap:10}}>
         {PPST.map(d=>{const tot=Object.keys(ppstMov).filter(k=>k.startsWith(`t${d.id}-`)).reduce((a,k)=>a+ppstMov[k].length,0);
-          return<div key={d.id} onClick={()=>setSel(d.id)} style={{background:"#fff",borderRadius:14,padding:16,cursor:"pointer",borderLeft:`5px solid ${d.color}`}}>
+          return<div key={d.id} onClick={()=>setPpstSel(d.id)} style={{background:"#fff",borderRadius:14,padding:16,cursor:"pointer",borderLeft:`5px solid ${d.color}`}}>
             <Badge color={d.color}>Domain {d.id}</Badge><div style={{fontSize:13,fontWeight:600,marginTop:6}}>{d.name}</div>
             <div style={{fontSize:11,color:"#999",marginTop:4}}>{d.strands.length} strands · <strong>{tot} MOVs</strong></div></div>})}</div>
-      :(<><button onClick={()=>setSel(null)} style={{background:"none",border:"none",cursor:"pointer",fontSize:13,color:"#666",display:"flex",alignItems:"center",gap:4,marginBottom:10,fontFamily:"inherit"}}>{IC.back} All Domains</button>
+      :(<><button onClick={()=>setPpstSel(null)} style={{background:"none",border:"none",cursor:"pointer",fontSize:13,color:"#666",display:"flex",alignItems:"center",gap:4,marginBottom:10,fontFamily:"inherit"}}>{IC.back} All Domains</button>
         <div style={{background:`linear-gradient(135deg,${dom.color},${dom.color}cc)`,borderRadius:14,padding:"16px 20px",color:"#fff",marginBottom:14}}>
           <div style={{fontSize:11,opacity:.7}}>Domain {dom.id}</div><h3 style={{margin:"2px 0",fontSize:16,fontWeight:700}}>{dom.name}</h3></div>
         {dom.strands.map(strand=>{const k=`t${dom.id}-${strand.code}`;const sm=ppstMov[k]||[];
@@ -1436,6 +1467,16 @@ ${l.remarks?`<strong>Remarks:</strong> ${l.remarks}<br/>`:""}
           <Inp label="MOV Document Name" value={f.mn||""} onChange={v=>ff("mn",v)} ph="e.g. Signed SIP, School memo..."/>
           <Inp label="Attributed to" value={f.ppt||""} onChange={v=>ff("ppt",v)} ph="Principal"/>
           <Btn onClick={()=>{if(!f.mn?.trim())return;const k=`${did}-${sCode}`;setPpsMov(prev=>({...prev,[k]:[...(prev[k]||[]),{id:uid(),name:f.mn.trim(),teacher:f.ppt||"Principal",date:nowS(),type:"text/plain",size:0}]}));fr();setModal(null);}} full color={d?.color||"#0b2a52"}>Add MOV</Btn></Modal>);})()}
+      {modal&&modal.startsWith("ppSubAdd_")&&(()=>{const[,did,sCode]=modal.split("_");const d=PPSSH.find(x=>x.id===Number(did));return(
+        <Modal open={true} onClose={()=>setModal(null)} title={`Add sub-indicator under ${sCode}`}>
+          <div style={{background:"#f0f4f8",borderRadius:8,padding:10,marginBottom:12,fontSize:12,color:"#555"}}>Create a sub-indicator (e.g. {sCode}.1, {sCode}.2) with its own files.</div>
+          <Inp label="Sub-indicator code" value={f.subCode||""} onChange={v=>ff("subCode",v)} ph={`${sCode}.1`}/>
+          <Inp label="Label (optional)" value={f.subLabel||""} onChange={v=>ff("subLabel",v)} ph="e.g. Evidence of Q1 planning" ta/>
+          <Btn onClick={()=>{if(!f.subCode?.trim())return;const k=`${did}-${sCode}`;setPpsMovSubs(prev=>{const existing=prev[k]||[];if(existing.find(s=>s.code===f.subCode.trim()))return prev;return{...prev,[k]:[...existing,{code:f.subCode.trim(),label:(f.subLabel||"").trim(),files:[]}]};});fr();setModal(null);}} full color={d?.color||"#0b2a52"}>Add sub-indicator</Btn></Modal>);})()}
+      {modal&&modal.startsWith("ppSubU_")&&(()=>{const parts=modal.split("_");const did=parts[1];const sCode=parts[2];const subCode=parts.slice(3).join("_");const d=PPSSH.find(x=>x.id===Number(did));return(
+        <Modal open={true} onClose={()=>setModal(null)} title={`Upload to ${subCode}`}>
+          <Inp label="Attributed to" value={f.ppt||""} onChange={v=>ff("ppt",v)} ph="Principal / Teacher name"/>
+          <FileUploader onUpload={(file)=>{const k=`${did}-${sCode}`;setPpsMovSubs(prev=>({...prev,[k]:(prev[k]||[]).map(s=>s.code===subCode?{...s,files:[...s.files,{...file,id:uid(),teacher:f.ppt||"Principal"}]}:s)}));fr();setModal(null);}} accept=".pdf,.docx,.xlsx,.jpg,.jpeg,.png,.pptx"/></Modal>);})()}
       <style>{`
 @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@300;400;500;600;700&display=swap');
 :root{
