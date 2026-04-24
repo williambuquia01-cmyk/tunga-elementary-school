@@ -330,6 +330,7 @@ export default function App(){
   const[ppstSel,setPpstSel]=useState(null);
   const[ppssExpandedStrand,setPpssExpandedStrand]=useState(null); // "did-code" or null
   const[listModalCfg,setListModalCfg]=useState(null); // {title, items, setItems, fields, withSig}
+  const[leaveTab,setLeaveTab]=useState("all"); // "all" | "teacher" | "non-teaching"
 
   // ── GLOBAL STORES (SY-scoped) ──
   const[users,setUsers]=useStore("users_v3",[]);
@@ -370,23 +371,29 @@ export default function App(){
   const isAdmin=auth.role==="admin";
 
   // Leave module constants (hoisted to TESApp so addLeave modal survives re-renders without typing lag)
+  // Master list of ALL leave types (used for CS Form 6 rendering + validation)
   const LEAVE_TYPES=[
-    {v:"Vacation Leave",days:15,code:"VL",pool:"vacationLeave"},
-    {v:"Mandatory/Forced Leave",days:5,code:"FL",pool:"forcedLeave"},
-    {v:"Sick Leave",days:15,code:"SL",pool:"sickLeave"},
-    {v:"Maternity Leave",days:105,code:"MAT",pool:null},
-    {v:"Paternity Leave",days:7,code:"PAT",pool:null},
-    {v:"Special Privilege Leave",days:3,code:"SPL",pool:null},
-    {v:"Solo Parent Leave",days:7,code:"SOLO",pool:null},
-    {v:"Study Leave",days:0,code:"STL",pool:null},
-    {v:"10-Day VAWC Leave",days:10,code:"VAWC",pool:null},
-    {v:"Rehabilitation Privilege",days:0,code:"REHAB",pool:null},
-    {v:"Special Leave Benefits for Women",days:60,code:"SLBW",pool:null},
-    {v:"Special Emergency (Calamity) Leave",days:5,code:"CAL",pool:null},
-    {v:"Adoption Leave",days:60,code:"ADOPT",pool:null},
-    {v:"Wellness Leave (Others)",days:3,code:"WL",pool:"wellnessLeave"},
-    {v:"CTO (Others)",days:0,code:"CTO",pool:"cto"},
+    {v:"Vacation Leave",code:"VL",pool:"vacationLeave",roles:["non-teaching"]},
+    {v:"Mandatory/Forced Leave",code:"FL",pool:"forcedLeave",roles:["non-teaching"]},
+    {v:"Sick Leave",code:"SL",pool:"sickLeave",roles:["teacher","non-teaching"]},
+    {v:"Maternity Leave",code:"MAT",pool:null,roles:["teacher","non-teaching"]},
+    {v:"Paternity Leave",code:"PAT",pool:null,roles:["teacher","non-teaching"]},
+    {v:"Special Privilege Leave",code:"SPL",pool:null,roles:["non-teaching"]},
+    {v:"Solo Parent Leave",code:"SOLO",pool:null,roles:["teacher","non-teaching"]},
+    {v:"Study Leave",code:"STL",pool:null,roles:["teacher","non-teaching"]},
+    {v:"10-Day VAWC Leave",code:"VAWC",pool:null,roles:["teacher","non-teaching"]},
+    {v:"Rehabilitation Privilege",code:"REHAB",pool:null,roles:["teacher","non-teaching"]},
+    {v:"Special Leave Benefits for Women",code:"SLBW",pool:null,roles:["teacher","non-teaching"]},
+    {v:"Special Emergency (Calamity) Leave",code:"CAL",pool:null,roles:["teacher","non-teaching"]},
+    {v:"Adoption Leave",code:"ADOPT",pool:null,roles:["teacher","non-teaching"]},
+    {v:"Wellness Leave",code:"WL",pool:"wellnessLeave",roles:["teacher","non-teaching"]},
+    {v:"Mental Health Leave",code:"MHL",pool:null,roles:["teacher","non-teaching"]},
+    {v:"Service Credits",code:"SC",pool:"serviceCredits",roles:["teacher"]},
+    {v:"CTO",code:"CTO",pool:"cto",roles:["non-teaching"]},
+    {v:"Others (Specify)",code:"OTH",pool:null,roles:["teacher","non-teaching"]},
   ];
+  // Returns only leave types available for a role
+  const leaveTypesForRole=(role)=>LEAVE_TYPES.filter(lt=>lt.roles.includes(role==="admin"?"non-teaching":role));
   const getMyCredits=()=>{const u=users.find(x=>x.username===auth?.username);return u?.credits||{};};
   const daysBetween=(s,e)=>{if(!s||!e)return 0;const d1=new Date(s),d2=new Date(e);return Math.round((d2-d1)/(1000*60*60*24))+1;};
 
@@ -1571,25 +1578,47 @@ ${l.reason?`<div style="margin-top:2pt;font-size:8pt;font-style:italic;">${l.rea
       const link=document.createElement("a");link.href=URL.createObjectURL(blob);link.download=`CS-Form-6_${l.requester.replace(/[^a-zA-Z0-9]/g,"_")}_${l.dateFiled}.doc`;
       document.body.appendChild(link);link.click();document.body.removeChild(link);setTimeout(()=>URL.revokeObjectURL(link.href),1000);};
 
-    const myLeaves=isAdmin?leaves:leaves.filter(l=>l.username===auth.username);
+    // Helper: get user role for a leave (by matching username -> users)
+    const userRoleFor=(uname)=>{const u=users.find(x=>x.username===uname);return u?.role||"teacher";};
+    const baseList=isAdmin?leaves:leaves.filter(l=>l.username===auth.username);
+    const myLeaves=isAdmin&&leaveTab!=="all"?baseList.filter(l=>userRoleFor(l.username)===leaveTab):baseList;
     const pendingCount=leaves.filter(l=>l.status==="pending").length;
+    const pendingTeaching=leaves.filter(l=>l.status==="pending"&&userRoleFor(l.username)==="teacher").length;
+    const pendingNonTeaching=leaves.filter(l=>l.status==="pending"&&userRoleFor(l.username)==="non-teaching").length;
+    // Credit tiles: filter to pools that apply to this user's role
+    const myRole=auth.role==="admin"?"non-teaching":auth.role;
+    const creditTiles=[
+      {l:"Service Credits",k:"serviceCredits",c:"#a8640a",roles:["teacher"]},
+      {l:"Vacation",k:"vacationLeave",c:"#0b2a52",roles:["non-teaching"]},
+      {l:"Sick",k:"sickLeave",c:"#a2321a",roles:["teacher","non-teaching"]},
+      {l:"Wellness",k:"wellnessLeave",c:"#1f6b4e",roles:["teacher","non-teaching"]},
+      {l:"Forced",k:"forcedLeave",c:"#5f5a4c",roles:["non-teaching"]},
+      {l:"CTO (hrs)",k:"cto",c:"#5B2C6F",roles:["non-teaching"]},
+    ].filter(t=>t.roles.includes(myRole));
 
     return(<><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12,flexWrap:"wrap",gap:6}}>
       <h2 style={{fontSize:22,fontWeight:500,fontFamily:"var(--font-serif)",letterSpacing:"-0.02em"}}>Leave Requests {isAdmin&&pendingCount>0&&<Badge color="#a8640a">{pendingCount} pending</Badge>}</h2>
       <Btn sm onClick={()=>{fr();ff("lvComm","No");setModal("addLeave");}} color="#0b2a52">{IC.plus} File Leave</Btn></div>
 
+      {/* Admin tab switcher: All / Teaching / Non-Teaching */}
+      {isAdmin&&<div style={{display:"flex",gap:2,marginBottom:12,background:"var(--n-100)",borderRadius:10,padding:3}}>
+        {[{v:"all",l:"All",c:pendingCount},{v:"teacher",l:"🧑‍🏫 Teaching Staff",c:pendingTeaching},{v:"non-teaching",l:"👔 Non-Teaching Staff",c:pendingNonTeaching}].map(t=>(
+          <button key={t.v} onClick={()=>setLeaveTab(t.v)} style={{flex:1,padding:"8px 12px",border:"none",borderRadius:8,background:leaveTab===t.v?"#fff":"transparent",color:leaveTab===t.v?"var(--brand-1)":"var(--ink-muted)",fontWeight:leaveTab===t.v?600:500,cursor:"pointer",fontSize:13,fontFamily:"inherit",boxShadow:leaveTab===t.v?"var(--shadow-sm)":"none",transition:"all .15s"}}>
+            {t.l} {t.c>0&&<span style={{background:"#a8640a",color:"#fff",borderRadius:10,padding:"1px 7px",fontSize:10,fontWeight:700,marginLeft:4}}>{t.c}</span>}
+          </button>))}</div>}
+
       <div style={{background:"var(--brand-1-soft)",borderRadius:10,padding:12,marginBottom:14,fontSize:12,color:"var(--brand-1)"}}>
         <strong>DepEd Leave Application (CS Form No. 6, Revised 2020)</strong> — Submit leave requests under CSC MC 41, s. 1998 and related issuances. Your request will be reviewed by the Principal. After approval, you can download CS Form 6 as PDF or Word document.</div>
 
-      {!isAdmin&&<div style={{background:"#fff",borderRadius:12,padding:14,marginBottom:12,boxShadow:"var(--shadow-sm)"}}>
+      {!isAdmin&&creditTiles.length>0&&<div style={{background:"#fff",borderRadius:12,padding:14,marginBottom:12,boxShadow:"var(--shadow-sm)"}}>
         <div style={{fontSize:13,fontWeight:600,marginBottom:8,color:"var(--ink-muted)",textTransform:"uppercase",letterSpacing:"0.05em"}}>My Available Credits (set by Principal)</div>
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(110px,1fr))",gap:8}}>
-          {[{l:"Service Credits",k:"serviceCredits",c:"#a8640a"},{l:"Vacation",k:"vacationLeave",c:"#0b2a52"},{l:"Sick",k:"sickLeave",c:"#a2321a"},{l:"Wellness",k:"wellnessLeave",c:"#1f6b4e"},{l:"Forced",k:"forcedLeave",c:"#5f5a4c"},{l:"CTO (hrs)",k:"cto",c:"#5B2C6F"}].map(c=>{const bal=myCredits[c.k]||0;return<div key={c.k} style={{background:"var(--n-25)",borderRadius:8,padding:"8px 12px",borderLeft:`3px solid ${c.c}`}}>
+          {creditTiles.map(c=>{const bal=myCredits[c.k]||0;return<div key={c.k} style={{background:"var(--n-25)",borderRadius:8,padding:"8px 12px",borderLeft:`3px solid ${c.c}`}}>
             <div style={{fontSize:10,color:"var(--ink-muted)",fontWeight:600,textTransform:"uppercase"}}>{c.l}</div>
             <div style={{fontSize:20,fontWeight:500,color:c.c,fontFamily:"var(--font-serif)"}}>{bal}</div>
             <div style={{fontSize:10,color:"var(--ink-muted)"}}>available</div></div>;})}</div></div>}
 
-      {myLeaves.length===0&&<div style={{textAlign:"center",padding:32,color:"var(--ink-faint)",fontStyle:"italic"}}>No leave requests yet.</div>}
+      {myLeaves.length===0&&<div style={{textAlign:"center",padding:32,color:"var(--ink-faint)",fontStyle:"italic"}}>{isAdmin&&leaveTab!=="all"?`No ${leaveTab==="teacher"?"teaching":"non-teaching"} staff leave requests.`:"No leave requests yet."}</div>}
 
       {myLeaves.map(l=><div key={l.id} style={{background:"#fff",borderRadius:12,padding:14,marginBottom:8,borderLeft:`4px solid ${statusColors[l.status]}`,boxShadow:"var(--shadow-sm)"}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:6}}>
@@ -1701,11 +1730,14 @@ ${l.reason?`<div style="margin-top:2pt;font-size:8pt;font-style:italic;">${l.rea
           <Inp label="Attributed to" value={f.ppt||""} onChange={v=>ff("ppt",v)} ph="Principal / Teacher name"/>
           <FileUploader onUpload={(file)=>{const k=`${did}-${sCode}`;setPpsMovSubs(prev=>({...prev,[k]:(prev[k]||[]).map(s=>s.code===subCode?{...s,files:[...s.files,{...file,id:uid(),teacher:f.ppt||"Principal"}]}:s)}));fr();setModal(null);}} accept=".pdf,.docx,.xlsx,.jpg,.jpeg,.png,.pptx"/></Modal>);})()}
       {/* ═══ HOISTED LEAVE MODAL (fixes typing lag in CS Form 6 filing) ═══ */}
-      {modal==="addLeave"&&(()=>{const myC=getMyCredits();const daysReq=daysBetween(f.lvStart,f.lvEnd);const selectedLT=LEAVE_TYPES.find(lt=>lt.v===f.lvType);const poolBal=selectedLT?.pool?(myC[selectedLT.pool]||0):null;const isSick=f.lvType==="Sick Leave";const isWellness=f.lvType==="Wellness Leave (Others)";return(
+      {modal==="addLeave"&&(()=>{const myC=getMyCredits();const daysReq=daysBetween(f.lvStart,f.lvEnd);const selectedLT=LEAVE_TYPES.find(lt=>lt.v===f.lvType);const poolBal=selectedLT?.pool?(myC[selectedLT.pool]||0):null;const isSick=f.lvType==="Sick Leave";const isWellness=f.lvType==="Wellness Leave";const isOthers=f.lvType==="Others (Specify)";const myAvail=leaveTypesForRole(auth.role);return(
         <Modal open={true} onClose={()=>setModal(null)} title="File Leave Application — CS Form 6" wide>
           <div style={{background:"var(--brand-1-soft)",borderRadius:8,padding:10,marginBottom:12,fontSize:12,color:"var(--brand-1)"}}>
-            <strong>Filing as:</strong> {auth.name} ({auth.position||auth.role})</div>
-          <Sel label="Type of Leave" value={f.lvType||""} onChange={v=>ff("lvType",v)} options={["Select leave type...",...LEAVE_TYPES.map(lt=>lt.v)]}/>
+            <strong>Filing as:</strong> {auth.name} ({auth.position||auth.role}) — {myAvail.length} leave types available for your role</div>
+          <Sel label="Type of Leave" value={f.lvType||""} onChange={v=>ff("lvType",v)} options={["Select leave type...",...myAvail.map(lt=>lt.v)]}/>
+          {isOthers&&<div style={{background:"#f0f4f8",borderRadius:8,padding:12,marginBottom:12,border:"1px solid #0b2a5233"}}>
+            <div style={{fontSize:13,fontWeight:600,color:"#0b2a52",marginBottom:6}}>📝 Others — Specify Type</div>
+            <Inp label="Type of Leave (your own specification)" value={f.lvOthersType||""} onChange={v=>ff("lvOthersType",v)} ph="e.g. Filial Leave, Bereavement, etc."/></div>}
           {poolBal!==null&&<div style={{fontSize:12,marginBottom:10,padding:"6px 10px",borderRadius:6,background:poolBal<daysReq?"#f7e2db":"#e4efe9",color:poolBal<daysReq?"#a2321a":"#1f6b4e",fontWeight:600}}>
             {poolBal<daysReq?"⚠️":"✓"} You have <strong>{poolBal}</strong> {selectedLT.code} day(s) available{daysReq>0&&`, applying for ${daysReq}`}</div>}
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
@@ -1724,18 +1756,22 @@ ${l.reason?`<div style="margin-top:2pt;font-size:8pt;font-style:italic;">${l.rea
             <div style={{fontSize:12,color:"var(--ink-muted)",marginBottom:8}}>Specify who will cover your classes during your absence.</div>
             <Sel label="Teacher Reliever (from list)" value={f.lvRelieverSel||""} onChange={v=>{ff("lvRelieverSel",v);if(v&&v!=="__other__"&&v!=="Select a teacher...")ff("lvReliever",v);}} options={["Select a teacher...",...users.filter(u=>u.role==="teacher"&&u.username!==auth.username).map(u=>u.name),"__other__"]}/>
             {(f.lvRelieverSel==="__other__"||!f.lvRelieverSel||f.lvRelieverSel==="Select a teacher...")&&<Inp label="Or type reliever name" value={f.lvReliever||""} onChange={v=>ff("lvReliever",v)} ph="Reliever's full name"/>}</div>}
-          <Inp label="Details / Reason" value={f.lvReason||""} onChange={v=>ff("lvReason",v)} ta ph="Purpose of leave, nature of illness, etc."/>
+          <Inp label={isOthers||f.lvType==="Special Privilege Leave"?"Reason (required)":"Details / Reason"} value={f.lvReason||""} onChange={v=>ff("lvReason",v)} ta ph="Purpose of leave, nature of illness, etc."/>
           <Inp label="Whereabouts during leave" value={f.lvWhere||""} onChange={v=>ff("lvWhere",v)} ph="Within Philippines / Abroad (specify country)"/>
           <Sel label="Commutation" value={f.lvComm||"No"} onChange={v=>ff("lvComm",v)} options={["No","Requested"]}/>
           <Btn onClick={()=>{
             if(!f.lvType||f.lvType==="Select leave type..."||!f.lvStart||!f.lvEnd){alert("Please fill in leave type, start date, and end date");return;}
+            if(f.lvType==="Others (Specify)"&&!f.lvOthersType?.trim()){alert("Please specify the type of leave in the 'Others' field");return;}
+            if((f.lvType==="Others (Specify)"||f.lvType==="Special Privilege Leave")&&!f.lvReason?.trim()){alert("Please enter the reason for your leave");return;}
             const days=daysBetween(f.lvStart,f.lvEnd);
             if(days<=0){alert("End date must be after or equal to start date");return;}
             const lt=LEAVE_TYPES.find(x=>x.v===f.lvType);const pb=lt?.pool?(myC[lt.pool]||0):null;
             if(pb!==null&&days>pb){if(!confirm(`⚠️ Insufficient ${lt.code} credits.\n\nYou have ${pb} day(s), applying for ${days} day(s).\n\nSubmit anyway? (admin will see the shortfall and may decline)`))return;}
             if(f.lvType==="Sick Leave"&&Number(f.lvSC||0)>(myC.serviceCredits||0)){if(!confirm(`⚠️ You're applying ${f.lvSC} service credits but only have ${myC.serviceCredits||0}. Submit anyway?`))return;}
+            const finalType=f.lvType==="Others (Specify)"?`Others: ${f.lvOthersType.trim()}`:f.lvType;
             setLeaves(prev=>[{id:uid(),requester:auth.name,username:auth.username,position:auth.position||auth.role,
-              type:f.lvType,startDate:f.lvStart,endDate:f.lvEnd,days,reason:f.lvReason||"",
+              filerRole:auth.role,
+              type:finalType,startDate:f.lvStart,endDate:f.lvEnd,days,reason:f.lvReason||"",
               whereabouts:f.lvWhere||"",commutable:f.lvComm||"No",
               sickType:f.lvSickType||"",illness:f.lvIllness||"",
               serviceCreditsUsed:Number(f.lvSC||0),reliever:f.lvReliever||"",
