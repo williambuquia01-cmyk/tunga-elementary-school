@@ -596,23 +596,28 @@ th{background:#1B4D7E;color:#fff;font-size:9pt;}.sum{background:#e8f0fe;font-wei
     const add=()=>{if(!f.pn?.trim())return;const ln=f.pn.trim().split(/[, ]+/)[0].toLowerCase().replace(/[^a-z]/g,"");
       setUsers(prev=>[...prev,{id:uid(),name:f.pn.trim(),role:f.pr||"teacher",position:f.pp||"",username:ln,password:ln+"123",
         assignedSections:f.pSections?f.pSections.split(",").map(s=>s.trim()).filter(Boolean):[],
-        coordinatorOf:f.pCoord?f.pCoord.split(",").map(s=>s.trim()).filter(Boolean):[]}]);fr();setModal(null);};
+        coordinatorOf:f.pCoord?f.pCoord.split(",").map(s=>s.trim()).filter(Boolean):[],
+        credits:{serviceCredits:0,vacationLeave:0,sickLeave:0,wellnessLeave:0,forcedLeave:0,cto:0}}]);fr();setModal(null);};
     const delUser=uid2=>setUsers(prev=>prev.filter(x=>x.id!==uid2));
     const editUser=(userId)=>{const user=users.find(u=>u.id===userId);if(!user)return;ff("eu_id",userId);ff("eu_name",user.name);ff("eu_pos",user.position);ff("eu_role",user.role);ff("eu_secs",(user.assignedSections||[]).join(", "));ff("eu_coord",(user.coordinatorOf||[]).join(", "));setModal("editUser");};
     const saveEdit=()=>{setUsers(prev=>prev.map(u=>u.id===f.eu_id?{...u,name:f.eu_name||u.name,position:f.eu_pos||u.position,role:f.eu_role||u.role,assignedSections:f.eu_secs?f.eu_secs.split(",").map(s=>s.trim()).filter(Boolean):[],coordinatorOf:f.eu_coord?f.eu_coord.split(",").map(s=>s.trim()).filter(Boolean):[]}:u));fr();setModal(null);};
+    const editCredits=(userId)=>{const user=users.find(u=>u.id===userId);if(!user)return;const c=user.credits||{};ff("cr_id",userId);ff("cr_serviceCredits",c.serviceCredits||0);ff("cr_vacationLeave",c.vacationLeave||0);ff("cr_sickLeave",c.sickLeave||0);ff("cr_wellnessLeave",c.wellnessLeave||0);ff("cr_forcedLeave",c.forcedLeave||0);ff("cr_cto",c.cto||0);setModal("editCredits");};
+    const saveCredits=()=>{setUsers(prev=>prev.map(u=>u.id===f.cr_id?{...u,credits:{serviceCredits:Number(f.cr_serviceCredits)||0,vacationLeave:Number(f.cr_vacationLeave)||0,sickLeave:Number(f.cr_sickLeave)||0,wellnessLeave:Number(f.cr_wellnessLeave)||0,forcedLeave:Number(f.cr_forcedLeave)||0,cto:Number(f.cr_cto)||0}}:u));fr();setModal(null);};
     return(<><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
       <h2 style={{fontSize:20,fontWeight:700}}>Personnel & Accounts</h2><Btn sm onClick={()=>{fr();ff("pr","teacher");setModal("addP");}}>{IC.plus} Add</Btn></div>
-      <div style={{background:"#e8f0fe",borderRadius:10,padding:12,marginBottom:14,fontSize:13,color:"#1B4D7E"}}><strong>Role-based access:</strong> Assign sections and coordinator roles. Username = family name, Password = familyname + 123.</div>
+      <div style={{background:"#e8f0fe",borderRadius:10,padding:12,marginBottom:14,fontSize:13,color:"#1B4D7E"}}><strong>Role-based access:</strong> Assign sections and coordinator roles. Username = family name, Password = familyname + 123. Click <strong>Credits</strong> to set available leave balances.</div>
       {[{t:"Teaching",r:"teacher",c:"#1B4D7E"},{t:"Non-Teaching",r:"non-teaching",c:"#5B2C6F"}].map(sec=><div key={sec.t} style={{marginBottom:16}}>
         <h3 style={{fontSize:15,fontWeight:600,color:sec.c,marginBottom:8}}>{sec.t} ({users.filter(u=>u.role===sec.r).length})</h3>
-        {users.filter(u=>u.role===sec.r).map(u=><div key={u.id} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",background:"#fff",borderRadius:10,marginBottom:4}}>
-          <div style={{width:36,height:36,borderRadius:"50%",background:sec.c,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontWeight:700,fontSize:14}}>{u.name[0]}</div>
-          <div style={{flex:1}}><div style={{fontSize:14,fontWeight:600}}>{u.name} <span style={{fontSize:11,color:"#999"}}>({u.position})</span></div>
+        {users.filter(u=>u.role===sec.r).map(u=>{const c=u.credits||{};const creditTotal=(c.serviceCredits||0)+(c.vacationLeave||0)+(c.sickLeave||0)+(c.wellnessLeave||0)+(c.forcedLeave||0)+(c.cto||0);return<div key={u.id} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",background:"#fff",borderRadius:10,marginBottom:4,flexWrap:"wrap"}}>
+          <div style={{width:36,height:36,borderRadius:"50%",background:sec.c,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontWeight:700,fontSize:14,flexShrink:0}}>{u.name[0]}</div>
+          <div style={{flex:1,minWidth:180}}><div style={{fontSize:14,fontWeight:600}}>{u.name} <span style={{fontSize:11,color:"#999"}}>({u.position})</span></div>
             <div style={{fontSize:11,color:"#888"}}>Login: <strong>{u.username}</strong> / <strong>{u.password}</strong></div>
             {(u.assignedSections||[]).length>0&&<div style={{fontSize:11,color:"#2E6B4F"}}>Sections: {u.assignedSections.map(sid=>{const found=allSections.find(x=>x.id===sid);return found?found.label:sid;}).join(", ")}</div>}
-            {(u.coordinatorOf||[]).length>0&&<div style={{fontSize:11,color:"#7D6608"}}>Coordinator: {u.coordinatorOf.join(", ")}</div>}</div>
+            {(u.coordinatorOf||[]).length>0&&<div style={{fontSize:11,color:"#7D6608"}}>Coordinator: {u.coordinatorOf.join(", ")}</div>}
+            <div style={{fontSize:11,color:"#666",marginTop:2}}>🗓️ Credits: SC {c.serviceCredits||0} · VL {c.vacationLeave||0} · SL {c.sickLeave||0} · WL {c.wellnessLeave||0} · FL {c.forcedLeave||0} · CTO {c.cto||0}</div></div>
+          <Btn sm outline color="#a8640a" onClick={()=>editCredits(u.id)}>Credits</Btn>
           <Btn sm outline onClick={()=>editUser(u.id)}>Edit</Btn>
-          <button onClick={()=>delUser(u.id)} style={{background:"none",border:"none",cursor:"pointer",color:"#c0392b"}}>{IC.trash}</button></div>)}
+          <button onClick={()=>delUser(u.id)} style={{background:"none",border:"none",cursor:"pointer",color:"#c0392b"}}>{IC.trash}</button></div>;})}
         {users.filter(u=>u.role===sec.r).length===0&&<div style={{fontSize:13,color:"#ccc",fontStyle:"italic",padding:8}}>No {sec.t.toLowerCase()} staff</div>}</div>)}
       <Modal open={modal==="addP"} onClose={()=>setModal(null)} title="Add personnel">
         <Inp label="Full name" value={f.pn||""} onChange={v=>ff("pn",v)} ph="e.g. Carmen E. Trinidad"/>
@@ -632,7 +637,19 @@ th{background:#1B4D7E;color:#fff;font-size:9pt;}.sum{background:#e8f0fe;font-wei
             <input type="checkbox" checked={(f.eu_secs||"").includes(s.id)} onChange={e=>{const cur=(f.eu_secs||"").split(",").filter(Boolean);if(e.target.checked)ff("eu_secs",[...cur,s.id].join(","));else ff("eu_secs",cur.filter(x=>x!==s.id).join(","));}}/>
             {s.label}</label>)}</div></div>
         <Inp label="Coordinator of" value={f.eu_coord||""} onChange={v=>ff("eu_coord",v)} ph="GAD, Reading, DRRM"/>
-        <Btn onClick={saveEdit} full>Save changes</Btn></Modal></>);};
+        <Btn onClick={saveEdit} full>Save changes</Btn></Modal>
+      <Modal open={modal==="editCredits"} onClose={()=>setModal(null)} title="Update Leave Credits" wide>
+        <div style={{background:"#faefd8",borderRadius:8,padding:10,marginBottom:12,fontSize:12,color:"#a8640a"}}>
+          <strong>Leave & Service Credits</strong> — Set the current available balance for each category. Values are in days (or hours for CTO).</div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+          <Inp label="Service Credits (days)" value={f.cr_serviceCredits||""} onChange={v=>ff("cr_serviceCredits",v)} type="number" ph="0"/>
+          <Inp label="Vacation Leave (days)" value={f.cr_vacationLeave||""} onChange={v=>ff("cr_vacationLeave",v)} type="number" ph="0"/>
+          <Inp label="Sick Leave (days)" value={f.cr_sickLeave||""} onChange={v=>ff("cr_sickLeave",v)} type="number" ph="0"/>
+          <Inp label="Wellness Leave (days)" value={f.cr_wellnessLeave||""} onChange={v=>ff("cr_wellnessLeave",v)} type="number" ph="0"/>
+          <Inp label="Forced Leave (days)" value={f.cr_forcedLeave||""} onChange={v=>ff("cr_forcedLeave",v)} type="number" ph="0"/>
+          <Inp label="CTO (hours)" value={f.cr_cto||""} onChange={v=>ff("cr_cto",v)} type="number" ph="0"/>
+        </div>
+        <Btn onClick={saveCredits} full color="#a8640a">Save Credits</Btn></Modal></>);};
 
   /* ═══ GENERIC LIST PAGE (for Announcements & Bulletins — with optional e-sig) ═══ */
   const ListPage=({title,items,setItems,fields,withSig})=>{
@@ -1266,83 +1283,197 @@ tr:nth-child(even){background:#f5f7fa;}
   const LeavePage=()=>{
     const LEAVE_TYPES=[
       {v:"Vacation Leave",days:15,code:"VL"},
+      {v:"Mandatory/Forced Leave",days:5,code:"FL"},
       {v:"Sick Leave",days:15,code:"SL"},
-      {v:"Special Privilege Leave",days:3,code:"SPL"},
-      {v:"Wellness Leave",days:3,code:"WL"},
       {v:"Maternity Leave",days:105,code:"MAT"},
       {v:"Paternity Leave",days:7,code:"PAT"},
-      {v:"Bereavement Leave",days:3,code:"BL"},
-      {v:"Emergency Leave",days:5,code:"EL"},
+      {v:"Special Privilege Leave",days:3,code:"SPL"},
+      {v:"Solo Parent Leave",days:7,code:"SOLO"},
       {v:"Study Leave",days:0,code:"STL"},
+      {v:"10-Day VAWC Leave",days:10,code:"VAWC"},
+      {v:"Rehabilitation Privilege",days:0,code:"REHAB"},
+      {v:"Special Leave Benefits for Women",days:60,code:"SLBW"},
+      {v:"Special Emergency (Calamity) Leave",days:5,code:"CAL"},
+      {v:"Adoption Leave",days:60,code:"ADOPT"},
+      {v:"Wellness Leave (Others)",days:3,code:"WL"},
+      {v:"CTO (Others)",days:0,code:"CTO"},
     ];
     const statusColors={pending:"#a8640a",approved:"#1f6b4e",declined:"#a2321a",completed:"#0b2a52"};
     const statusBg={pending:"#faefd8",approved:"#e4efe9",declined:"#f7e2db",completed:"#e8edf5"};
 
     const daysBetween=(s,e)=>{if(!s||!e)return 0;const d1=new Date(s),d2=new Date(e);return Math.round((d2-d1)/(1000*60*60*24))+1;};
-    const addLeave=()=>{
-      if(!f.lvType||!f.lvStart||!f.lvEnd){alert("Please fill in leave type, start date, and end date");return;}
-      const days=daysBetween(f.lvStart,f.lvEnd);
-      if(days<=0){alert("End date must be after or equal to start date");return;}
-      setLeaves(prev=>[{id:uid(),requester:auth.name,username:auth.username,position:auth.position||auth.role,
-        type:f.lvType,startDate:f.lvStart,endDate:f.lvEnd,days,reason:f.lvReason||"",
-        whereabouts:f.lvWhere||"",commutable:f.lvComm||"No",
-        status:"pending",dateFiled:now(),remarks:""},...prev]);
-      fr();setModal(null);};
-    const updateLeaveStatus=(lid,status,remarks)=>{
-      setLeaves(prev=>prev.map(l=>l.id===lid?{...l,status,remarks:remarks||l.remarks,dateActioned:now(),actionedBy:auth.name}:l));
-      setModal(null);};
     const deleteLeave=(lid)=>setLeaves(prev=>prev.filter(l=>l.id!==lid));
 
-    // Calculate leave balance for a user
-    const balance=(username,type)=>{
-      const lt=LEAVE_TYPES.find(x=>x.v===type);if(!lt)return 0;
-      const used=leaves.filter(l=>l.username===username&&l.type===type&&(l.status==="approved"||l.status==="completed")).reduce((a,l)=>a+l.days,0);
-      return lt.days-used;};
+    // Get user's credits
+    const getCredits=(username)=>{const u=users.find(x=>x.username===username);return u?.credits||{};};
+    const myCredits=getCredits(auth.username);
 
-    // Print CS Form 6
-    const printCS6=(l)=>{
+    // Print CS Form 6 (HTML -> browser print dialog -> save as PDF)
+    const printCS6=(l,withSig=true)=>{
+      const sig=withSig?`<img src="${E_SIG}" class="sig-img"/>`:`<div style="height:40pt;"></div>`;
+      const checked="☑";const unchecked="☐";
+      const is=(t)=>l.type===t||l.type?.includes(t);
       const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>CS Form 6 - ${l.requester}</title>
-<style>@page{size:8.5in 13in;margin:0.7in;}*{margin:0;padding:0;box-sizing:border-box;}body{font-family:'Bookman Old Style','Times New Roman',serif;font-size:11pt;padding:0.7in;}
-.hdr{text-align:center;margin-bottom:10pt;}.hdr .r{font-size:10pt;}.hdr .d{font-size:16pt;font-weight:bold;}.hdr .sc{font-size:11pt;font-weight:bold;letter-spacing:1.5px;margin-top:3pt;}
-hr{border:none;border-top:2pt solid #000;margin:4pt 0;}
-.form-title{text-align:center;font-size:14pt;font-weight:bold;margin:12pt 0;text-decoration:underline;}
-.form-sub{text-align:center;font-size:10pt;color:#333;margin-bottom:14pt;}
-.seal{width:0.7in;height:0.7in;object-fit:contain;margin:2pt auto;display:block;}
-table{width:100%;border-collapse:collapse;margin-bottom:10pt;}
-td,th{border:1pt solid #333;padding:6pt 8pt;vertical-align:top;font-size:10pt;}
-.lbl{font-weight:bold;background:#f5f5f5;width:28%;}
-.sig{margin-top:30pt;display:flex;justify-content:space-between;}
-.sig-block{text-align:center;width:45%;}.sig-block .line{border-top:1pt solid #000;margin-top:32pt;padding-top:2pt;font-weight:bold;}
-.sig-img{height:40pt;object-fit:contain;display:block;margin:0 auto;}
+<style>@page{size:8.5in 13in;margin:0.55in;}*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Bookman Old Style','Times New Roman',serif;font-size:9pt;padding:0.55in;line-height:1.3;}
+.hdr{text-align:center;margin-bottom:6pt;}.hdr .r{font-size:9pt;}.hdr .d{font-size:14pt;font-weight:bold;}.hdr .sc{font-size:10pt;font-weight:bold;letter-spacing:1.5px;margin-top:2pt;}
+hr{border:none;border-top:1.5pt solid #000;margin:3pt 0;}
+.annex{display:flex;justify-content:space-between;font-size:9pt;font-style:italic;margin-bottom:4pt;}
+.annex strong{font-style:normal;}
+.form-title{text-align:center;font-size:12pt;font-weight:bold;margin:8pt 0 3pt;text-decoration:underline;letter-spacing:1pt;}
+.seal{width:0.6in;height:0.6in;object-fit:contain;margin:2pt auto;display:block;}
+table{width:100%;border-collapse:collapse;margin-bottom:4pt;}
+td,th{border:1pt solid #000;padding:4pt 6pt;vertical-align:top;font-size:8.5pt;}
+.lbl{font-weight:bold;font-size:8pt;}
+.chk{font-size:9pt;margin-right:3pt;}.chk-row{display:block;margin:1pt 0;}
+.sig-img{height:36pt;object-fit:contain;display:block;margin:0 auto -8pt;}
+.sig-line{border-top:0.75pt solid #000;margin-top:24pt;padding-top:1pt;text-align:center;font-weight:bold;font-size:9pt;}
+.two-col{display:flex;gap:4pt;}.two-col>div{flex:1;border:1pt solid #000;padding:5pt 7pt;}
+.credit-table{margin-top:3pt;}.credit-table td{padding:2pt 4pt;font-size:8pt;}
 </style></head><body>
+<div class="annex"><div>Civil Service Form No. 6</div><div><strong>ANNEX A</strong></div></div>
+<div style="text-align:center;font-style:italic;font-size:9pt;margin-bottom:4pt;">Revised 2020</div>
 <div class="hdr"><img src="${DEPED_SEAL}" class="seal"/>
 <div class="r">Republic of the Philippines</div><div class="d">Department of Education</div>
 <div class="r">Region VII — Central Visayas · Schools Division of Cebu Province</div>
 <div class="sc">TUNGA ELEMENTARY SCHOOL</div><div class="r">Brgy. Tunga, Moalboal, Cebu · School ID: 119502</div></div>
 <hr/>
+<div style="text-align:right;font-size:8pt;font-style:italic;margin-bottom:2pt;">DATE OF RECEIPT: _______________</div>
 <div class="form-title">APPLICATION FOR LEAVE</div>
-<div class="form-sub">(CS Form No. 6, Revised 2020)</div>
-<table>
-<tr><td class="lbl">1. OFFICE / AGENCY</td><td colspan="3">Tunga Elementary School, Moalboal District</td></tr>
-<tr><td class="lbl">2. NAME</td><td colspan="3">${l.requester}</td></tr>
-<tr><td class="lbl">3. DATE OF FILING</td><td>${l.dateFiled}</td><td class="lbl">4. POSITION</td><td>${l.position}</td></tr>
-<tr><td class="lbl">5. SALARY</td><td colspan="3">____________________________</td></tr>
-<tr><td class="lbl">6.a TYPE OF LEAVE</td><td colspan="3"><strong>${l.type.toUpperCase()}</strong></td></tr>
-<tr><td class="lbl">6.b DETAILS OF LEAVE</td><td colspan="3">${l.reason||"As stated"}</td></tr>
-<tr><td class="lbl">6.c NUMBER OF WORKING DAYS</td><td>${l.days} day(s)</td><td class="lbl">INCLUSIVE DATES</td><td>${l.startDate} to ${l.endDate}</td></tr>
-<tr><td class="lbl">6.d COMMUTATION</td><td>${l.commutable}</td><td class="lbl">WHEREABOUTS</td><td>${l.whereabouts||"Within Philippines"}</td></tr>
-</table>
-<div class="sig">
-<div class="sig-block"><div style="text-align:left;">Signature of Applicant:</div><div class="line">${l.requester.toUpperCase()}</div><div>${l.position}</div></div>
-<div class="sig-block"><div style="text-align:left;">Recommending Approval:</div><img src="${E_SIG}" class="sig-img"/><div class="line" style="margin-top:4pt;">WILLIAM A. BUQUIA, Dev.Ed.D.</div><div>Principal I</div></div>
-</div>
-<table style="margin-top:16pt;"><tr><td style="padding:10pt;">
-<strong>ACTION ON APPLICATION:</strong> ${l.status.toUpperCase()}<br/>
-<strong>Date Actioned:</strong> ${l.dateActioned||"Pending"}<br/>
-${l.remarks?`<strong>Remarks:</strong> ${l.remarks}<br/>`:""}
+
+<table><tr><td colspan="3" class="lbl">1. OFFICE/DEPARTMENT: <span style="font-weight:normal">Tunga Elementary School, Moalboal District</span></td>
+<td colspan="3" class="lbl">2. NAME: <span style="font-weight:normal">${l.requester}</span></td></tr>
+<tr><td colspan="2" class="lbl">3. DATE OF FILING: <span style="font-weight:normal">${l.dateFiled}</span></td>
+<td colspan="2" class="lbl">4. POSITION: <span style="font-weight:normal">${l.position}</span></td>
+<td colspan="2" class="lbl">5. SALARY: <span style="font-weight:normal">${l.salary||"_____________"}</span></td></tr></table>
+
+<div style="background:#f0f0f0;padding:3pt 6pt;font-weight:bold;font-size:9pt;border:1pt solid #000;border-bottom:none;">6. DETAILS OF APPLICATION</div>
+<table><tr><td style="width:55%;"><div class="lbl" style="margin-bottom:3pt;">6.A TYPE OF LEAVE TO BE AVAILED OF</div>
+<div class="chk-row"><span class="chk">${is("Vacation Leave")?checked:unchecked}</span> Vacation Leave <span style="font-size:7pt;">(Sec. 51, Rule XVI, E.O. 292)</span></div>
+<div class="chk-row"><span class="chk">${is("Forced")||is("Mandatory")?checked:unchecked}</span> Mandatory/Forced Leave <span style="font-size:7pt;">(Sec. 25, Rule XVI, E.O. 292)</span></div>
+<div class="chk-row"><span class="chk">${is("Sick Leave")?checked:unchecked}</span> Sick Leave <span style="font-size:7pt;">(Sec. 43, Rule XVI, E.O. 292)</span></div>
+<div class="chk-row"><span class="chk">${is("Maternity")?checked:unchecked}</span> Maternity Leave <span style="font-size:7pt;">(R.A. 11210)</span></div>
+<div class="chk-row"><span class="chk">${is("Paternity")?checked:unchecked}</span> Paternity Leave <span style="font-size:7pt;">(R.A. 8187)</span></div>
+<div class="chk-row"><span class="chk">${is("Special Privilege")?checked:unchecked}</span> Special Privilege Leave <span style="font-size:7pt;">(Sec. 21, Rule XVI, E.O. 292)</span></div>
+<div class="chk-row"><span class="chk">${is("Solo Parent")?checked:unchecked}</span> Solo Parent Leave <span style="font-size:7pt;">(R.A. 8972)</span></div>
+<div class="chk-row"><span class="chk">${is("Study Leave")?checked:unchecked}</span> Study Leave <span style="font-size:7pt;">(Sec. 68, Rule XVI, E.O. 292)</span></div>
+<div class="chk-row"><span class="chk">${is("VAWC")?checked:unchecked}</span> 10-Day VAWC Leave <span style="font-size:7pt;">(R.A. 9262)</span></div>
+<div class="chk-row"><span class="chk">${is("Rehabilitation")?checked:unchecked}</span> Rehabilitation Privilege</div>
+<div class="chk-row"><span class="chk">${is("Special Leave Benefits for Women")?checked:unchecked}</span> Special Leave Benefits for Women <span style="font-size:7pt;">(R.A. 9710)</span></div>
+<div class="chk-row"><span class="chk">${is("Calamity")||is("Emergency")?checked:unchecked}</span> Special Emergency (Calamity) Leave</div>
+<div class="chk-row"><span class="chk">${is("Adoption")?checked:unchecked}</span> Adoption Leave <span style="font-size:7pt;">(R.A. 8552)</span></div>
+<div class="chk-row"><span class="chk">${is("Wellness")||is("CTO")||is("Others")?checked:unchecked}</span> <em>Others:</em> <strong>${(is("Wellness")||is("CTO")||is("Others"))?l.type.replace(" (Others)",""):"_______________"}</strong></div>
+</td>
+<td style="width:45%;"><div class="lbl" style="margin-bottom:3pt;">6.B DETAILS OF LEAVE</div>
+<div style="font-style:italic;font-size:7.5pt;margin-top:2pt;">In case of Vacation/SPL:</div>
+<div class="chk-row"><span class="chk">${l.whereabouts?.includes("Phil")?checked:unchecked}</span> Within the Philippines</div>
+<div class="chk-row"><span class="chk">${l.whereabouts?.toLowerCase().includes("abroad")?checked:unchecked}</span> Abroad: <em>${l.whereabouts?.toLowerCase().includes("abroad")?l.whereabouts:"___________"}</em></div>
+<div style="font-style:italic;font-size:7.5pt;margin-top:4pt;">In case of Sick Leave:</div>
+<div class="chk-row"><span class="chk">${l.sickType==="hospital"?checked:unchecked}</span> In Hospital: <em>${l.sickType==="hospital"?(l.illness||""):"___________"}</em></div>
+<div class="chk-row"><span class="chk">${l.sickType==="outpatient"?checked:unchecked}</span> Out Patient: <em>${l.sickType==="outpatient"?(l.illness||""):"___________"}</em></div>
+${l.reliever?`<div style="margin-top:4pt;"><strong>Teacher Reliever:</strong> ${l.reliever}</div>`:""}
+${l.serviceCreditsUsed?`<div><strong>Service Credits Applied:</strong> ${l.serviceCreditsUsed} day(s)</div>`:""}
+${l.reason?`<div style="margin-top:3pt;font-size:8pt;"><strong>Details:</strong> ${l.reason}</div>`:""}
 </td></tr></table>
+
+<table><tr><td style="width:60%;"><span class="lbl">6.C NUMBER OF WORKING DAYS APPLIED FOR:</span> <strong>${l.days}</strong> day(s) &nbsp; <span class="lbl">INCLUSIVE DATES:</span> <strong>${l.startDate} to ${l.endDate}</strong></td>
+<td style="width:40%;"><span class="lbl">6.D COMMUTATION:</span>
+&nbsp;<span class="chk">${l.commutable==="No"?checked:unchecked}</span> Not Requested
+&nbsp;<span class="chk">${l.commutable==="Requested"?checked:unchecked}</span> Requested</td></tr>
+<tr><td colspan="2" style="text-align:right;padding:14pt 6pt 4pt;"><strong>${l.requester.toUpperCase()}</strong><br/><em style="font-size:8pt;">(Signature of Applicant)</em></td></tr></table>
+
+<div style="background:#f0f0f0;padding:3pt 6pt;font-weight:bold;font-size:9pt;border:1pt solid #000;border-bottom:none;">7. DETAILS OF ACTION ON APPLICATION</div>
+<table><tr><td style="width:50%;"><div class="lbl">7.A CERTIFICATION OF LEAVE CREDITS</div>
+<div style="margin-top:2pt;">As of <strong>${l.dateActioned||l.dateFiled}</strong></div>
+<table class="credit-table" style="margin-top:4pt;width:100%;"><tr><th></th><th>Vacation Leave</th><th>Sick Leave</th></tr>
+<tr><td><em>Total Earned</em></td><td>${(myCredits.vacationLeave||0)+(l.ledVL||0)}</td><td>${(myCredits.sickLeave||0)+(l.ledSL||0)}</td></tr>
+<tr><td><em>Less this application</em></td><td>${l.type==="Vacation Leave"?l.days:0}</td><td>${l.type==="Sick Leave"?l.days:0}</td></tr>
+<tr><td><em>Balance</em></td><td><strong>${(myCredits.vacationLeave||0)-(l.type==="Vacation Leave"?l.days:0)}</strong></td><td><strong>${(myCredits.sickLeave||0)-(l.type==="Sick Leave"?l.days:0)}</strong></td></tr></table>
+<div style="margin-top:16pt;text-align:center;"><strong>MONINA SARAH M. POMAREJOS, MPA</strong><br/><em style="font-size:8pt;">(Authorized Officer)</em></div></td>
+<td style="width:50%;"><div class="lbl">7.B RECOMMENDATION</div>
+<div class="chk-row" style="margin-top:3pt;"><span class="chk">${l.status==="approved"||l.status==="completed"?checked:unchecked}</span> For approval</div>
+<div class="chk-row"><span class="chk">${l.status==="declined"?checked:unchecked}</span> For disapproval due to: <em>${l.status==="declined"?(l.remarks||""):"_________________"}</em></div>
+${sig}
+<div class="sig-line">WILLIAM A. BUQUIA, Dev.Ed.D.<br/><em style="font-size:8pt;font-weight:normal;">Principal I (Authorized Officer)</em></div></td></tr></table>
+
+<table><tr><td style="width:50%;"><div class="lbl">7.C APPROVED FOR:</div>
+<div class="chk-row" style="margin-top:3pt;"><span class="chk">${l.status==="approved"||l.status==="completed"?checked:unchecked}</span> <strong>${l.status==="approved"||l.status==="completed"?l.days:"___"}</strong> days with pay</div>
+<div class="chk-row"><span class="chk">${unchecked}</span> _____ days without pay</div>
+<div class="chk-row"><span class="chk">${unchecked}</span> others (Specify): _______________</div></td>
+<td style="width:50%;"><div class="lbl">7.D DISAPPROVED DUE TO:</div>
+<div style="min-height:40pt;padding:3pt 0;font-size:8.5pt;">${l.status==="declined"?(l.remarks||""):""}</div>
+${sig}
+<div class="sig-line">WILLIAM A. BUQUIA, Dev.Ed.D.<br/><em style="font-size:8pt;font-weight:normal;">Principal I (Authorized Official)</em></div></td></tr></table>
+
 <script>window.onload=function(){setTimeout(function(){window.print();},500);}<\/script></body></html>`;
       const w=window.open("","_blank","width=850,height=1100");if(w){w.document.write(html);w.document.close();}};
+
+    // Download CS Form 6 as DOCX (via HTML -> .doc MS Word compatible file)
+    const downloadCS6Docx=(l,withSig=true)=>{
+      const checked="☑";const unchecked="☐";
+      const is=(t)=>l.type===t||l.type?.includes(t);
+      const sigHtml=withSig?`<img src='${E_SIG}' style='height:50px;'/><br/>`:`<br/><br/><br/>`;
+      const html=`<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+<head><meta charset="utf-8"><title>CS Form 6 - ${l.requester}</title>
+<xml><w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom></w:WordDocument></xml>
+<style>@page{size:8.5in 13in;margin:0.55in;}
+body{font-family:'Bookman Old Style','Times New Roman',serif;font-size:9pt;}
+table{width:100%;border-collapse:collapse;margin-bottom:4pt;}
+td,th{border:1pt solid #000;padding:4pt 6pt;vertical-align:top;font-size:8.5pt;}
+.lbl{font-weight:bold;font-size:8pt;}
+</style></head><body>
+<div style="text-align:center;"><strong>Republic of the Philippines</strong><br/>
+<span style="font-size:14pt;font-weight:bold;">Department of Education</span><br/>
+Region VII — Central Visayas · Schools Division of Cebu Province<br/>
+<strong>TUNGA ELEMENTARY SCHOOL</strong><br/>
+Brgy. Tunga, Moalboal, Cebu · School ID: 119502</div>
+<p style="text-align:right;font-style:italic;"><em>Civil Service Form No. 6 · Revised 2020 · ANNEX A</em></p>
+<h2 style="text-align:center;text-decoration:underline;">APPLICATION FOR LEAVE</h2>
+
+<table><tr><td class="lbl">1. OFFICE/DEPARTMENT:</td><td>Tunga Elementary School, Moalboal District</td>
+<td class="lbl">2. NAME:</td><td>${l.requester}</td></tr>
+<tr><td class="lbl">3. DATE OF FILING:</td><td>${l.dateFiled}</td>
+<td class="lbl">4. POSITION:</td><td>${l.position}</td></tr>
+<tr><td class="lbl">5. SALARY:</td><td colspan="3">${l.salary||"_____________"}</td></tr></table>
+
+<h4>6. DETAILS OF APPLICATION</h4>
+<table><tr><td style="width:55%;"><strong>6.A TYPE OF LEAVE</strong><br/>
+${checked} <strong>${l.type}</strong> — ${l.days} day(s)<br/>
+${l.startDate} to ${l.endDate}</td>
+<td style="width:45%;"><strong>6.B DETAILS OF LEAVE</strong><br/>
+${l.whereabouts?`Whereabouts: ${l.whereabouts}<br/>`:""}
+${l.sickType?`Sick Type: ${l.sickType==="hospital"?"In Hospital":"Out Patient"}<br/>`:""}
+${l.illness?`Illness: ${l.illness}<br/>`:""}
+${l.reliever?`<strong>Teacher Reliever:</strong> ${l.reliever}<br/>`:""}
+${l.serviceCreditsUsed?`<strong>Service Credits Applied:</strong> ${l.serviceCreditsUsed} day(s)<br/>`:""}
+${l.reason?`Details: ${l.reason}`:""}</td></tr>
+<tr><td class="lbl">6.C WORKING DAYS APPLIED FOR: <strong>${l.days}</strong>; DATES: ${l.startDate} to ${l.endDate}</td>
+<td class="lbl">6.D COMMUTATION: ${l.commutable}</td></tr></table>
+
+<p style="text-align:right;margin-top:18pt;"><strong>${l.requester.toUpperCase()}</strong><br/><em>(Signature of Applicant)</em></p>
+
+<h4>7. DETAILS OF ACTION ON APPLICATION</h4>
+<table><tr><td style="width:50%;"><strong>7.A CERTIFICATION OF LEAVE CREDITS</strong><br/>
+As of ${l.dateActioned||l.dateFiled}<br/><br/>
+<table><tr><th></th><th>Vacation Leave</th><th>Sick Leave</th></tr>
+<tr><td>Total Earned</td><td>${myCredits.vacationLeave||0}</td><td>${myCredits.sickLeave||0}</td></tr>
+<tr><td>Less this application</td><td>${l.type==="Vacation Leave"?l.days:0}</td><td>${l.type==="Sick Leave"?l.days:0}</td></tr>
+<tr><td>Balance</td><td><strong>${(myCredits.vacationLeave||0)-(l.type==="Vacation Leave"?l.days:0)}</strong></td><td><strong>${(myCredits.sickLeave||0)-(l.type==="Sick Leave"?l.days:0)}</strong></td></tr></table>
+<br/><div style="text-align:center;"><strong>MONINA SARAH M. POMAREJOS, MPA</strong><br/><em>(Authorized Officer)</em></div></td>
+<td style="width:50%;"><strong>7.B RECOMMENDATION</strong><br/>
+${l.status==="approved"||l.status==="completed"?checked:unchecked} For approval<br/>
+${l.status==="declined"?checked:unchecked} For disapproval due to: ${l.status==="declined"?(l.remarks||""):""}<br/><br/>
+${sigHtml}
+<div style="text-align:center;border-top:1pt solid #000;padding-top:2pt;"><strong>WILLIAM A. BUQUIA, Dev.Ed.D.</strong><br/><em>Principal I (Authorized Officer)</em></div></td></tr>
+<tr><td><strong>7.C APPROVED FOR:</strong><br/>
+${l.status==="approved"||l.status==="completed"?checked:unchecked} <strong>${l.status==="approved"||l.status==="completed"?l.days:"___"}</strong> days with pay</td>
+<td><strong>7.D DISAPPROVED DUE TO:</strong><br/>${l.status==="declined"?(l.remarks||""):""}<br/><br/>
+${sigHtml}
+<div style="text-align:center;border-top:1pt solid #000;padding-top:2pt;"><strong>WILLIAM A. BUQUIA, Dev.Ed.D.</strong></div></td></tr></table>
+</body></html>`;
+      const blob=new Blob(["\ufeff"+html],{type:"application/msword"});
+      const link=document.createElement("a");link.href=URL.createObjectURL(blob);link.download=`CS-Form-6_${l.requester.replace(/[^a-zA-Z0-9]/g,"_")}_${l.dateFiled}.doc`;
+      document.body.appendChild(link);link.click();document.body.removeChild(link);setTimeout(()=>URL.revokeObjectURL(link.href),1000);};
 
     const myLeaves=isAdmin?leaves:leaves.filter(l=>l.username===auth.username);
     const pendingCount=leaves.filter(l=>l.status==="pending").length;
@@ -1352,17 +1483,15 @@ ${l.remarks?`<strong>Remarks:</strong> ${l.remarks}<br/>`:""}
       <Btn sm onClick={()=>{fr();ff("lvComm","No");setModal("addLeave");}} color="#0b2a52">{IC.plus} File Leave</Btn></div>
 
       <div style={{background:"var(--brand-1-soft)",borderRadius:10,padding:12,marginBottom:14,fontSize:12,color:"var(--brand-1)"}}>
-        <strong>DepEd Leave Application (CS Form No. 6)</strong> — Submit leave requests under CSC MC 41, s. 1998 and RA 11210 (Maternity Leave). Your request will be reviewed by the Principal. Print CS Form 6 after approval.</div>
+        <strong>DepEd Leave Application (CS Form No. 6, Revised 2020)</strong> — Submit leave requests under CSC MC 41, s. 1998 and related issuances. Your request will be reviewed by the Principal. After approval, you can download CS Form 6 as PDF or Word document.</div>
 
-      {/* My Leave Balance Summary (for non-admin users) */}
       {!isAdmin&&<div style={{background:"#fff",borderRadius:12,padding:14,marginBottom:12,boxShadow:"var(--shadow-sm)"}}>
-        <div style={{fontSize:13,fontWeight:600,marginBottom:8,color:"var(--ink-muted)",textTransform:"uppercase",letterSpacing:"0.05em"}}>My Leave Balance</div>
+        <div style={{fontSize:13,fontWeight:600,marginBottom:8,color:"var(--ink-muted)",textTransform:"uppercase",letterSpacing:"0.05em"}}>My Available Credits (set by Principal)</div>
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(110px,1fr))",gap:8}}>
-          {LEAVE_TYPES.slice(0,5).map(lt=>{const bal=balance(auth.username,lt.v);const color=bal>lt.days*0.5?"#1f6b4e":bal>0?"#a8640a":"#a2321a";
-            return<div key={lt.v} style={{background:"var(--n-25)",borderRadius:8,padding:"8px 12px",borderLeft:`3px solid ${color}`}}>
-              <div style={{fontSize:10,color:"var(--ink-muted)",fontWeight:600}}>{lt.code}</div>
-              <div style={{fontSize:18,fontWeight:700,color,fontFamily:"var(--font-serif)"}}>{bal}<span style={{fontSize:11,color:"var(--ink-muted)",fontWeight:400}}>/{lt.days}</span></div>
-              <div style={{fontSize:10,color:"var(--ink-muted)"}}>days left</div></div>;})}</div></div>}
+          {[{l:"Service Credits",k:"serviceCredits",c:"#a8640a"},{l:"Vacation",k:"vacationLeave",c:"#0b2a52"},{l:"Sick",k:"sickLeave",c:"#a2321a"},{l:"Wellness",k:"wellnessLeave",c:"#1f6b4e"},{l:"Forced",k:"forcedLeave",c:"#5f5a4c"},{l:"CTO (hrs)",k:"cto",c:"#5B2C6F"}].map(c=>{const bal=myCredits[c.k]||0;return<div key={c.k} style={{background:"var(--n-25)",borderRadius:8,padding:"8px 12px",borderLeft:`3px solid ${c.c}`}}>
+            <div style={{fontSize:10,color:"var(--ink-muted)",fontWeight:600,textTransform:"uppercase"}}>{c.l}</div>
+            <div style={{fontSize:20,fontWeight:500,color:c.c,fontFamily:"var(--font-serif)"}}>{bal}</div>
+            <div style={{fontSize:10,color:"var(--ink-muted)"}}>available</div></div>;})}</div></div>}
 
       {myLeaves.length===0&&<div style={{textAlign:"center",padding:32,color:"var(--ink-faint)",fontStyle:"italic"}}>No leave requests yet.</div>}
 
@@ -1377,33 +1506,71 @@ ${l.remarks?`<strong>Remarks:</strong> ${l.remarks}<br/>`:""}
               <div><strong style={{color:"var(--ink)"}}>{l.type}</strong></div>
               <div>📅 {l.startDate} → {l.endDate}</div>
               <div><strong style={{color:"var(--brand-1)"}}>{l.days}</strong> working day(s)</div></div>
+            {l.reliever&&<div style={{marginTop:4,fontSize:12,color:"var(--brand-2)"}}>🤝 Teacher Reliever: <strong>{l.reliever}</strong></div>}
+            {l.serviceCreditsUsed>0&&<div style={{marginTop:4,fontSize:12,color:"#a8640a"}}>💳 Service Credits Applied: <strong>{l.serviceCreditsUsed} day(s)</strong></div>}
             {l.reason&&<div style={{marginTop:6,fontSize:12,color:"var(--ink-muted)",background:"var(--n-25)",borderRadius:6,padding:"6px 10px"}}>💬 {l.reason}</div>}
             {l.remarks&&<div style={{marginTop:6,fontSize:12,color:"var(--brand-1)",background:"var(--brand-1-soft)",borderRadius:6,padding:"6px 10px"}}><strong>Principal's Remarks:</strong> {l.remarks}</div>}</div>
-          <div style={{display:"flex",gap:4,flexShrink:0}}>
+          <div style={{display:"flex",gap:4,flexShrink:0,flexWrap:"wrap"}}>
             {isAdmin&&l.status==="pending"&&<>
-              <Btn sm color="#1f6b4e" onClick={()=>{ff("lvRemarks","");setModal(`lvA_${l.id}`);}}>{IC.check} Approve</Btn>
+              <Btn sm color="#1f6b4e" onClick={()=>{ff("lvRemarks","");ff("lvSig","yes");setModal(`lvA_${l.id}`);}}>{IC.check} Approve</Btn>
               <Btn sm color="#a2321a" outline onClick={()=>{ff("lvRemarks","");setModal(`lvD_${l.id}`);}}>Decline</Btn></>}
-            {(l.status==="approved"||l.status==="completed")&&<Btn sm color="#0b2a52" outline onClick={()=>printCS6(l)}>{IC.download} CS Form 6</Btn>}
+            {(l.status==="approved"||l.status==="completed"||l.status==="declined")&&<>
+              <Btn sm color="#0b2a52" outline onClick={()=>printCS6(l,l.signedWithESig!==false)}>{IC.download} PDF</Btn>
+              <Btn sm color="#1f6b4e" outline onClick={()=>downloadCS6Docx(l,l.signedWithESig!==false)}>{IC.download} DOCX</Btn></>}
             {(isAdmin||(l.status==="pending"&&l.username===auth.username))&&<button onClick={()=>deleteLeave(l.id)} style={{background:"none",border:"none",cursor:"pointer",color:"var(--ink-faint)"}}>{IC.trash}</button>}</div></div>
         <Modal open={modal===`lvA_${l.id}`} onClose={()=>setModal(null)} title="Approve Leave Request">
           <Inp label="Remarks (optional)" value={f.lvRemarks||""} onChange={v=>ff("lvRemarks",v)} ta ph="e.g. Approved subject to submission of medical certificate..."/>
-          <Btn onClick={()=>updateLeaveStatus(l.id,"approved",f.lvRemarks)} full color="#1f6b4e">Approve Leave</Btn></Modal>
+          <div style={{marginBottom:12,padding:"10px 12px",background:"var(--brand-1-soft)",borderRadius:8}}>
+            <label style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",fontSize:13,fontWeight:500,color:"var(--brand-1)"}}>
+              <input type="checkbox" checked={f.lvSig!=="no"} onChange={e=>ff("lvSig",e.target.checked?"yes":"no")}/>
+              Include my e-signature on the approved CS Form 6</label>
+            <div style={{fontSize:11,color:"var(--ink-muted)",marginTop:3,paddingLeft:22}}>If unchecked, a blank signature line will be printed for wet signature.</div></div>
+          <Btn onClick={()=>{setLeaves(prev=>prev.map(x=>x.id===l.id?{...x,status:"approved",remarks:f.lvRemarks||"",signedWithESig:f.lvSig!=="no",dateActioned:now(),actionedBy:auth.name}:x));setModal(null);}} full color="#1f6b4e">Approve Leave</Btn></Modal>
         <Modal open={modal===`lvD_${l.id}`} onClose={()=>setModal(null)} title="Decline Leave Request">
           <Inp label="Reason for declining" value={f.lvRemarks||""} onChange={v=>ff("lvRemarks",v)} ta ph="Please provide a reason..."/>
-          <Btn onClick={()=>updateLeaveStatus(l.id,"declined",f.lvRemarks)} full color="#a2321a">Decline Leave</Btn></Modal></div>)}
+          <Btn onClick={()=>{setLeaves(prev=>prev.map(x=>x.id===l.id?{...x,status:"declined",remarks:f.lvRemarks||"",signedWithESig:true,dateActioned:now(),actionedBy:auth.name}:x));setModal(null);}} full color="#a2321a">Decline Leave</Btn></Modal></div>)}
 
       <Modal open={modal==="addLeave"} onClose={()=>setModal(null)} title="File Leave Application — CS Form 6" wide>
         <div style={{background:"var(--brand-1-soft)",borderRadius:8,padding:10,marginBottom:12,fontSize:12,color:"var(--brand-1)"}}>
           <strong>Filing as:</strong> {auth.name} ({auth.position||auth.role})</div>
-        <Sel label="Type of Leave" value={f.lvType||""} onChange={v=>ff("lvType",v)} options={["Select leave type...",...LEAVE_TYPES.map(lt=>`${lt.v} (${lt.days>0?`${lt.days} days/yr`:"as needed"})`)]}/>
+        <Sel label="Type of Leave" value={f.lvType||""} onChange={v=>ff("lvType",v)} options={["Select leave type...",...LEAVE_TYPES.map(lt=>lt.v)]}/>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
           <Inp label="Start Date" value={f.lvStart||""} onChange={v=>ff("lvStart",v)} type="date"/>
           <Inp label="End Date" value={f.lvEnd||""} onChange={v=>ff("lvEnd",v)} type="date"/></div>
         {f.lvStart&&f.lvEnd&&<div style={{fontSize:12,color:"var(--brand-1)",marginBottom:10,fontWeight:600}}>📅 Total: {daysBetween(f.lvStart,f.lvEnd)} working day(s)</div>}
-        <Inp label="Details / Reason" value={f.lvReason||""} onChange={v=>ff("lvReason",v)} ta ph="Nature of illness, purpose of leave, etc."/>
+
+        {/* Conditional: Sick Leave — service credits */}
+        {f.lvType==="Sick Leave"&&<div style={{background:"#faefd8",borderRadius:8,padding:12,marginBottom:12,border:"1px solid #a8640a33"}}>
+          <div style={{fontSize:13,fontWeight:600,color:"#a8640a",marginBottom:6}}>🏥 Sick Leave Details</div>
+          <div style={{fontSize:12,color:"var(--ink-muted)",marginBottom:8}}>You have <strong style={{color:"#a8640a"}}>{myCredits.serviceCredits||0} service credits</strong> and <strong style={{color:"#a2321a"}}>{myCredits.sickLeave||0} sick leave days</strong> available.</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+            <Sel label="Type" value={f.lvSickType||""} onChange={v=>ff("lvSickType",v)} options={[{value:"",label:"Select..."},{value:"hospital",label:"In Hospital"},{value:"outpatient",label:"Out Patient"}]}/>
+            <Inp label="Service Credits to apply" value={f.lvSC||""} onChange={v=>ff("lvSC",v)} type="number" ph="0"/></div>
+          <Inp label="Specify Illness" value={f.lvIllness||""} onChange={v=>ff("lvIllness",v)} ph="e.g. Influenza, hypertension check-up"/></div>}
+
+        {/* Conditional: Wellness Leave — teacher reliever */}
+        {f.lvType==="Wellness Leave (Others)"&&<div style={{background:"#e4efe9",borderRadius:8,padding:12,marginBottom:12,border:"1px solid #1f6b4e33"}}>
+          <div style={{fontSize:13,fontWeight:600,color:"#1f6b4e",marginBottom:6}}>🌿 Wellness Leave — Teacher Reliever</div>
+          <div style={{fontSize:12,color:"var(--ink-muted)",marginBottom:8}}>You have <strong style={{color:"#1f6b4e"}}>{myCredits.wellnessLeave||0} wellness leave day(s)</strong> available. Specify who will cover your classes during your absence.</div>
+          <Sel label="Teacher Reliever (from list)" value={f.lvRelieverSel||""} onChange={v=>{ff("lvRelieverSel",v);if(v&&v!=="__other__")ff("lvReliever",v);}} options={["Select a teacher...",...users.filter(u=>u.role==="teacher"&&u.username!==auth.username).map(u=>u.name),"__other__"]}/>
+          {(f.lvRelieverSel==="__other__"||!f.lvRelieverSel||f.lvRelieverSel==="Select a teacher...")&&<Inp label="Or type reliever name" value={f.lvReliever||""} onChange={v=>ff("lvReliever",v)} ph="Reliever's full name"/>}</div>}
+
+        <Inp label="Details / Reason" value={f.lvReason||""} onChange={v=>ff("lvReason",v)} ta ph="Purpose of leave, nature of illness, etc."/>
         <Inp label="Whereabouts during leave" value={f.lvWhere||""} onChange={v=>ff("lvWhere",v)} ph="Within Philippines / Abroad (specify country)"/>
         <Sel label="Commutation" value={f.lvComm||"No"} onChange={v=>ff("lvComm",v)} options={["No","Requested"]}/>
-        <Btn onClick={addLeave} full color="#0b2a52">Submit Leave Application</Btn></Modal></>);};
+        <Btn onClick={()=>{
+          if(!f.lvType||f.lvType==="Select leave type..."||!f.lvStart||!f.lvEnd){alert("Please fill in leave type, start date, and end date");return;}
+          const days=daysBetween(f.lvStart,f.lvEnd);
+          if(days<=0){alert("End date must be after or equal to start date");return;}
+          if(f.lvType==="Sick Leave"&&Number(f.lvSC||0)>(myCredits.serviceCredits||0)){if(!confirm(`⚠️ You're applying ${f.lvSC} service credits but only have ${myCredits.serviceCredits||0}. Submit anyway (admin will review)?`))return;}
+          setLeaves(prev=>[{id:uid(),requester:auth.name,username:auth.username,position:auth.position||auth.role,
+            type:f.lvType,startDate:f.lvStart,endDate:f.lvEnd,days,reason:f.lvReason||"",
+            whereabouts:f.lvWhere||"",commutable:f.lvComm||"No",
+            sickType:f.lvSickType||"",illness:f.lvIllness||"",
+            serviceCreditsUsed:Number(f.lvSC||0),reliever:f.lvReliever||"",
+            status:"pending",dateFiled:now(),remarks:""},...prev]);
+          fr();setModal(null);
+        }} full color="#0b2a52">Submit Leave Application</Btn></Modal></>);};
 
   /* ═══ RENDER ═══ */
   const pages={home:<HomePage/>,students:<StudentsPage/>,grades:<GradesPage/>,personnel:<PersonnelPage/>,coordinators:<CoordsPage/>,
