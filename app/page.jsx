@@ -1309,168 +1309,264 @@ tr:nth-child(even){background:#f5f7fa;}
     const myCredits=getMyCredits();
 
     // Print CS Form 6 (HTML -> browser print dialog -> save as PDF)
+    // Pixel-close reproduction of CS Form 6 Revised 2020, 1-page long bond (8.5 x 13")
     const printCS6=(l,withSig=true)=>{
-      const sig=withSig?`<img src="${E_SIG}" class="sig-img"/>`:`<div style="height:40pt;"></div>`;
-      const checked="☑";const unchecked="☐";
+      const chk="☑";const unc="☐";
       const is=(t)=>l.type===t||l.type?.includes(t);
+      // Parse name into Last, First, Middle (best-effort split)
+      const nameParts=(l.requester||"").split(",").map(s=>s.trim());
+      const last=nameParts[0]||"";const firstMid=(nameParts[1]||l.requester).split(" ");const first=firstMid[0]||"";const middle=firstMid.slice(1).join(" ")||"";
+      const sigBlock=withSig?`<img src="${E_SIG}" style="height:38pt;object-fit:contain;"/>`:`<div style="height:38pt;"></div>`;
+      const actionSigBlock=withSig?`<img src="${E_SIG}" style="height:34pt;object-fit:contain;margin-bottom:-4pt;"/>`:`<div style="height:30pt;"></div>`;
       const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>CS Form 6 - ${l.requester}</title>
-<style>@page{size:8.5in 13in;margin:0.55in;}*{margin:0;padding:0;box-sizing:border-box;}
-body{font-family:'Bookman Old Style','Times New Roman',serif;font-size:9pt;padding:0.55in;line-height:1.3;}
-.hdr{text-align:center;margin-bottom:6pt;}.hdr .r{font-size:9pt;}.hdr .d{font-size:14pt;font-weight:bold;}.hdr .sc{font-size:10pt;font-weight:bold;letter-spacing:1.5px;margin-top:2pt;}
-hr{border:none;border-top:1.5pt solid #000;margin:3pt 0;}
-.annex{display:flex;justify-content:space-between;font-size:9pt;font-style:italic;margin-bottom:4pt;}
-.annex strong{font-style:normal;}
-.form-title{text-align:center;font-size:12pt;font-weight:bold;margin:8pt 0 3pt;text-decoration:underline;letter-spacing:1pt;}
-.seal{width:0.6in;height:0.6in;object-fit:contain;margin:2pt auto;display:block;}
-table{width:100%;border-collapse:collapse;margin-bottom:4pt;}
-td,th{border:1pt solid #000;padding:4pt 6pt;vertical-align:top;font-size:8.5pt;}
-.lbl{font-weight:bold;font-size:8pt;}
-.chk{font-size:9pt;margin-right:3pt;}.chk-row{display:block;margin:1pt 0;}
-.sig-img{height:36pt;object-fit:contain;display:block;margin:0 auto -8pt;}
-.sig-line{border-top:0.75pt solid #000;margin-top:24pt;padding-top:1pt;text-align:center;font-weight:bold;font-size:9pt;}
-.two-col{display:flex;gap:4pt;}.two-col>div{flex:1;border:1pt solid #000;padding:5pt 7pt;}
-.credit-table{margin-top:3pt;}.credit-table td{padding:2pt 4pt;font-size:8pt;}
+<style>
+@page{size:8.5in 13in;margin:0.4in 0.5in 0.4in 0.5in;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Bookman Old Style','Times New Roman',serif;font-size:9pt;line-height:1.15;color:#000;}
+.annex{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:2pt;}
+.annex-left{font-style:italic;font-size:8.5pt;}
+.annex-left b{display:block;font-weight:normal;font-style:italic;}
+.annex-right{text-align:right;font-weight:bold;font-size:9.5pt;}
+.hdr{text-align:center;margin-top:2pt;}
+.hdr .seal{width:0.55in;height:0.55in;object-fit:contain;display:block;margin:0 auto 2pt;}
+.hdr .rp{font-size:9pt;}
+.hdr .doe{font-size:14pt;font-weight:bold;font-family:'Old English Text MT','UnifrakturMaguntia',Garamond,serif;}
+.hdr .reg{font-size:9.5pt;font-family:'Monotype Corsiva','Segoe Script',cursive;letter-spacing:0.3px;}
+.hdr .sdo{font-size:10pt;font-family:'Monotype Corsiva','Segoe Script',cursive;font-weight:bold;letter-spacing:0.3px;}
+.recv-box{position:absolute;top:32pt;right:40pt;width:1.1in;height:32pt;border:0.75pt solid #000;}
+.recv-label{position:absolute;top:70pt;right:40pt;font-size:7pt;letter-spacing:1.5pt;font-weight:bold;}
+.title{text-align:center;font-size:14pt;font-weight:bold;margin:8pt 0 4pt;letter-spacing:0.5pt;}
+table{width:100%;border-collapse:collapse;}
+td{border:0.75pt solid #000;padding:3pt 5pt;vertical-align:top;font-size:8.5pt;line-height:1.25;}
+.sec-hdr{text-align:center;font-weight:bold;font-size:9.5pt;padding:3pt;background:#fff;}
+.row1 td{height:32pt;}
+.row2 td{height:20pt;}
+.num{font-weight:bold;font-size:8pt;}
+.tl-label{font-weight:bold;font-size:8.5pt;display:block;margin-bottom:2pt;}
+.chk{font-size:9pt;vertical-align:-0.5pt;margin-right:2pt;}
+.chk-row{display:block;margin:0.6pt 0;font-size:8pt;line-height:1.2;}
+.chk-row .lbl{font-weight:bold;}
+.fine{font-size:7pt;font-style:italic;color:#333;}
+.italic{font-style:italic;}
+.detail-label{font-style:italic;font-size:8pt;margin:2pt 0 1pt;}
+.underline{border-bottom:0.5pt solid #000;display:inline-block;min-width:1.2in;padding:0 2pt;}
+.credit-tbl{width:100%;border-collapse:collapse;margin-top:3pt;}
+.credit-tbl td,.credit-tbl th{border:0.5pt solid #000;padding:2pt 4pt;font-size:7.5pt;text-align:center;line-height:1.2;}
+.credit-tbl th{font-weight:bold;}
+.credit-tbl .lbl{text-align:left;font-style:italic;}
+.sig-line{border-top:0.5pt solid #000;margin-top:2pt;padding-top:1pt;text-align:center;font-size:8pt;font-weight:bold;}
+.sig-sub{text-align:center;font-size:7.5pt;font-style:italic;}
+.app-sig{text-align:right;padding:18pt 8pt 4pt;}
+.app-sig-name{display:inline-block;text-align:center;min-width:2in;border-top:0.5pt solid #000;padding-top:1pt;font-weight:bold;font-size:9pt;}
+.app-sig-sub{display:block;font-size:7.5pt;font-style:italic;font-weight:normal;}
 </style></head><body>
-<div class="annex"><div>Civil Service Form No. 6</div><div><strong>ANNEX A</strong></div></div>
-<div style="text-align:center;font-style:italic;font-size:9pt;margin-bottom:4pt;">Revised 2020</div>
-<div class="hdr"><img src="${DEPED_SEAL}" class="seal"/>
-<div class="r">Republic of the Philippines</div><div class="d">Department of Education</div>
-<div class="r">Region VII — Central Visayas · Schools Division of Cebu Province</div>
-<div class="sc">TUNGA ELEMENTARY SCHOOL</div><div class="r">Brgy. Tunga, Moalboal, Cebu · School ID: 119502</div></div>
-<hr/>
-<div style="text-align:right;font-size:8pt;font-style:italic;margin-bottom:2pt;">DATE OF RECEIPT: _______________</div>
-<div class="form-title">APPLICATION FOR LEAVE</div>
+<div class="annex">
+<div class="annex-left"><b><i>Civil Service Form No.6</i></b><b><i>Revised 2020</i></b></div>
+<div class="annex-right">ANNEX A</div></div>
+<div class="recv-box"></div><div class="recv-label">DATE OF RECEIPT</div>
+<div class="hdr">
+<img src="${DEPED_SEAL}" class="seal"/>
+<div class="rp">Republic of the Philippines</div>
+<div class="doe">Department of Education</div>
+<div class="reg">REGION VII – CENTRAL VISAYAS</div>
+<div class="sdo">Schools Division of Cebu Province</div>
+</div>
+<div class="title">APPLICATION FOR LEAVE</div>
 
-<table><tr><td colspan="3" class="lbl">1. OFFICE/DEPARTMENT: <span style="font-weight:normal">Tunga Elementary School, Moalboal District</span></td>
-<td colspan="3" class="lbl">2. NAME: <span style="font-weight:normal">${l.requester}</span></td></tr>
-<tr><td colspan="2" class="lbl">3. DATE OF FILING: <span style="font-weight:normal">${l.dateFiled}</span></td>
-<td colspan="2" class="lbl">4. POSITION: <span style="font-weight:normal">${l.position}</span></td>
-<td colspan="2" class="lbl">5. SALARY: <span style="font-weight:normal">${l.salary||"_____________"}</span></td></tr></table>
+<table>
+<tr class="row1"><td style="width:44%;"><span class="num">1. OFFICE/DEPARTMENT</span><br/><span style="font-size:9pt;">Tunga Elementary School, Moalboal District</span></td>
+<td style="width:56%;"><span class="num">2. NAME:</span>
+<table style="border:none;margin-top:3pt;"><tr>
+<td style="border:none;border-bottom:0.5pt solid #000;width:34%;padding:1pt 4pt;font-size:9pt;">${last}</td>
+<td style="border:none;border-bottom:0.5pt solid #000;width:33%;padding:1pt 4pt;font-size:9pt;">${first}</td>
+<td style="border:none;border-bottom:0.5pt solid #000;width:33%;padding:1pt 4pt;font-size:9pt;">${middle}</td></tr>
+<tr><td style="border:none;font-size:7pt;font-style:italic;text-align:center;padding:0;">(Last)</td>
+<td style="border:none;font-size:7pt;font-style:italic;text-align:center;padding:0;">(First)</td>
+<td style="border:none;font-size:7pt;font-style:italic;text-align:center;padding:0;">(Middle)</td></tr></table></td></tr>
+<tr class="row2"><td colspan="2"><span class="num">3. DATE OF FILING</span> <span class="underline">${l.dateFiled}</span>
+&nbsp;&nbsp;&nbsp;<span class="num">4. POSITION</span> <span class="underline">${l.position}</span>
+&nbsp;&nbsp;&nbsp;<span class="num">5. SALARY</span> <span class="underline">${l.salary||""}</span></td></tr>
+<tr><td colspan="2" class="sec-hdr">6. DETAILS OF APPLICATION</td></tr>
+<tr>
+<td style="width:50%;padding:4pt 5pt;"><span class="tl-label">6.A TYPE OF LEAVE TO BE AVAILED OF</span>
+<span class="chk-row"><span class="chk">${is("Vacation Leave")?chk:unc}</span> <span class="lbl">Vacation Leave</span> <span class="fine">(Sec. 51, Rule XVI, Omnibus Rules Implementing E.O. No. 292)</span></span>
+<span class="chk-row"><span class="chk">${is("Mandatory")||is("Forced")?chk:unc}</span> <span class="lbl">Mandatory/Forced Leave</span><span class="fine">(Sec.25, Rule XVI, Omnibus Rules Implementing E.O. No.292)</span></span>
+<span class="chk-row"><span class="chk">${is("Sick Leave")?chk:unc}</span> <span class="lbl">Sick Leave</span> <span class="fine">(Sec. 43, Rule XVI, Omnibus Rules Implementing E.O. No. 292)</span></span>
+<span class="chk-row"><span class="chk">${is("Maternity")?chk:unc}</span> <span class="lbl">Maternity Leave</span> <span class="fine">(R.A. No. 11210 / IRR issued by CSC, DOLE and SSS)</span></span>
+<span class="chk-row"><span class="chk">${is("Paternity")?chk:unc}</span> <span class="lbl">Paternity Leave</span> <span class="fine">(R.A. No. 8187 / CSC MC No. 71, s. 1998, as amended)</span></span>
+<span class="chk-row"><span class="chk">${is("Special Privilege")?chk:unc}</span> <span class="lbl">Special Privilege Leave</span> <span class="fine">(Sec. 21, Rule XVI, Omnibus Rules Implementing E.O. No. 292)</span></span>
+<span class="chk-row"><span class="chk">${is("Solo Parent")?chk:unc}</span> <span class="lbl">Solo Parent Leave</span> <span class="fine">(RA No. 8972 / CSC MC No. 8, s. 2004)</span></span>
+<span class="chk-row"><span class="chk">${is("Study Leave")?chk:unc}</span> <span class="lbl">Study Leave</span> <span class="fine">(Sec. 68, Rule XVI, Omnibus Rules Implementing E.O. No. 292)</span></span>
+<span class="chk-row"><span class="chk">${is("VAWC")?chk:unc}</span> <span class="lbl">10-Day VAWC Leave</span> <span class="fine">(RA No. 9262 / CSC MC No. 15, s. 2005)</span></span>
+<span class="chk-row"><span class="chk">${is("Rehabilitation")?chk:unc}</span> <span class="lbl">Rehabilitation Privilege</span> <span class="fine">(Sec. 55, Rule XVI, Omnibus Rules Implementing E.O. No. 292)</span></span>
+<span class="chk-row"><span class="chk">${is("Special Leave Benefits")?chk:unc}</span> <span class="lbl">Special Leave Benefits for Women</span> <span class="fine">(RA No. 9710 / CSC MC No. 25, s.2010)</span></span>
+<span class="chk-row"><span class="chk">${is("Calamity")||is("Emergency")?chk:unc}</span> <span class="lbl">Special Emergency (Calamity) Leave</span> <span class="fine">(CSC MC No. 2, s. 2012, as amended)</span></span>
+<span class="chk-row"><span class="chk">${is("Adoption")?chk:unc}</span> <span class="lbl">Adoption Leave</span><span class="fine">(R.A. No. 8552)</span></span>
+<span class="chk-row italic" style="margin-top:2pt;">Others: <span class="underline" style="min-width:1.4in;">${(is("Wellness")||is("CTO")||is("Others"))?l.type.replace(" (Others)",""):""}</span></span></td>
+<td style="width:50%;padding:4pt 5pt;"><span class="tl-label">6.B DETAILS OF LEAVE</span>
+<div class="detail-label">In case of Vacation/Special Privilege Leave:</div>
+<span class="chk-row"><span class="chk">${l.whereabouts?.toLowerCase().includes("phil")?chk:unc}</span> Within the Philippines <span class="underline" style="min-width:1.2in;"></span></span>
+<span class="chk-row"><span class="chk">${l.whereabouts?.toLowerCase().includes("abroad")?chk:unc}</span> Abroad <span class="italic">(Specify)</span> <span class="underline" style="min-width:1.1in;">${l.whereabouts?.toLowerCase().includes("abroad")?l.whereabouts.replace(/abroad/i,"").trim():""}</span></span>
+<div class="detail-label">In case of Sick Leave:</div>
+<span class="chk-row"><span class="chk">${l.sickType==="hospital"?chk:unc}</span> In Hospital <span class="italic">(Specify Illness)</span> <span class="underline" style="min-width:1.0in;">${l.sickType==="hospital"?(l.illness||""):""}</span></span>
+<span class="chk-row"><span class="chk">${l.sickType==="outpatient"?chk:unc}</span> Out Patient <span class="italic">(Specify Illness)</span> <span class="underline" style="min-width:1.0in;">${l.sickType==="outpatient"?(l.illness||""):""}</span></span>
+<div class="detail-label">In case of Special Leave Benefits for Women:</div>
+<span class="chk-row">(Specify Illness) <span class="underline" style="min-width:1.8in;"></span></span>
+<div class="detail-label">In case of Study Leave:</div>
+<span class="chk-row"><span class="chk">${unc}</span> Completion of Master's Degree</span>
+<span class="chk-row"><span class="chk">${unc}</span> BAR/Board Examination Review</span>
+<div class="detail-label">Other purpose:</div>
+<span class="chk-row"><span class="chk">${unc}</span> Monetization of Leave Credits</span>
+<span class="chk-row"><span class="chk">${unc}</span> Terminal Leave</span>
+${l.reliever?`<div style="margin-top:3pt;font-size:8pt;"><b>Teacher Reliever:</b> ${l.reliever}</div>`:""}
+${l.serviceCreditsUsed>0?`<div style="font-size:8pt;"><b>Service Credits Applied:</b> ${l.serviceCreditsUsed} day(s)</div>`:""}
+${l.reason?`<div style="margin-top:2pt;font-size:8pt;font-style:italic;">${l.reason}</div>`:""}</td></tr>
+<tr><td style="padding:4pt 5pt;"><span class="num">6.C NUMBER OF WORKING DAYS APPLIED FOR</span><br/><span style="font-size:10pt;font-weight:bold;padding-left:14pt;">${l.days}</span>
+<br/><span class="num" style="margin-top:4pt;display:inline-block;">INCLUSIVE DATES</span><br/><span style="padding-left:14pt;font-size:8.5pt;">${l.startDate} to ${l.endDate}</span></td>
+<td style="padding:4pt 5pt;"><span class="num">6.D COMMUTATION</span>
+<span class="chk-row" style="margin-top:3pt;"><span class="chk">${l.commutable==="No"||l.commutable==="Not Requested"?chk:unc}</span> Not Requested</span>
+<span class="chk-row"><span class="chk">${l.commutable==="Requested"?chk:unc}</span> Requested</span>
+<div class="app-sig"><span class="app-sig-name">${l.requester}<span class="app-sig-sub">(Signature of Applicant)</span></span></div></td></tr>
 
-<div style="background:#f0f0f0;padding:3pt 6pt;font-weight:bold;font-size:9pt;border:1pt solid #000;border-bottom:none;">6. DETAILS OF APPLICATION</div>
-<table><tr><td style="width:55%;"><div class="lbl" style="margin-bottom:3pt;">6.A TYPE OF LEAVE TO BE AVAILED OF</div>
-<div class="chk-row"><span class="chk">${is("Vacation Leave")?checked:unchecked}</span> Vacation Leave <span style="font-size:7pt;">(Sec. 51, Rule XVI, E.O. 292)</span></div>
-<div class="chk-row"><span class="chk">${is("Forced")||is("Mandatory")?checked:unchecked}</span> Mandatory/Forced Leave <span style="font-size:7pt;">(Sec. 25, Rule XVI, E.O. 292)</span></div>
-<div class="chk-row"><span class="chk">${is("Sick Leave")?checked:unchecked}</span> Sick Leave <span style="font-size:7pt;">(Sec. 43, Rule XVI, E.O. 292)</span></div>
-<div class="chk-row"><span class="chk">${is("Maternity")?checked:unchecked}</span> Maternity Leave <span style="font-size:7pt;">(R.A. 11210)</span></div>
-<div class="chk-row"><span class="chk">${is("Paternity")?checked:unchecked}</span> Paternity Leave <span style="font-size:7pt;">(R.A. 8187)</span></div>
-<div class="chk-row"><span class="chk">${is("Special Privilege")?checked:unchecked}</span> Special Privilege Leave <span style="font-size:7pt;">(Sec. 21, Rule XVI, E.O. 292)</span></div>
-<div class="chk-row"><span class="chk">${is("Solo Parent")?checked:unchecked}</span> Solo Parent Leave <span style="font-size:7pt;">(R.A. 8972)</span></div>
-<div class="chk-row"><span class="chk">${is("Study Leave")?checked:unchecked}</span> Study Leave <span style="font-size:7pt;">(Sec. 68, Rule XVI, E.O. 292)</span></div>
-<div class="chk-row"><span class="chk">${is("VAWC")?checked:unchecked}</span> 10-Day VAWC Leave <span style="font-size:7pt;">(R.A. 9262)</span></div>
-<div class="chk-row"><span class="chk">${is("Rehabilitation")?checked:unchecked}</span> Rehabilitation Privilege</div>
-<div class="chk-row"><span class="chk">${is("Special Leave Benefits for Women")?checked:unchecked}</span> Special Leave Benefits for Women <span style="font-size:7pt;">(R.A. 9710)</span></div>
-<div class="chk-row"><span class="chk">${is("Calamity")||is("Emergency")?checked:unchecked}</span> Special Emergency (Calamity) Leave</div>
-<div class="chk-row"><span class="chk">${is("Adoption")?checked:unchecked}</span> Adoption Leave <span style="font-size:7pt;">(R.A. 8552)</span></div>
-<div class="chk-row"><span class="chk">${is("Wellness")||is("CTO")||is("Others")?checked:unchecked}</span> <em>Others:</em> <strong>${(is("Wellness")||is("CTO")||is("Others"))?l.type.replace(" (Others)",""):"_______________"}</strong></div>
-</td>
-<td style="width:45%;"><div class="lbl" style="margin-bottom:3pt;">6.B DETAILS OF LEAVE</div>
-<div style="font-style:italic;font-size:7.5pt;margin-top:2pt;">In case of Vacation/SPL:</div>
-<div class="chk-row"><span class="chk">${l.whereabouts?.includes("Phil")?checked:unchecked}</span> Within the Philippines</div>
-<div class="chk-row"><span class="chk">${l.whereabouts?.toLowerCase().includes("abroad")?checked:unchecked}</span> Abroad: <em>${l.whereabouts?.toLowerCase().includes("abroad")?l.whereabouts:"___________"}</em></div>
-<div style="font-style:italic;font-size:7.5pt;margin-top:4pt;">In case of Sick Leave:</div>
-<div class="chk-row"><span class="chk">${l.sickType==="hospital"?checked:unchecked}</span> In Hospital: <em>${l.sickType==="hospital"?(l.illness||""):"___________"}</em></div>
-<div class="chk-row"><span class="chk">${l.sickType==="outpatient"?checked:unchecked}</span> Out Patient: <em>${l.sickType==="outpatient"?(l.illness||""):"___________"}</em></div>
-${l.reliever?`<div style="margin-top:4pt;"><strong>Teacher Reliever:</strong> ${l.reliever}</div>`:""}
-${l.serviceCreditsUsed?`<div><strong>Service Credits Applied:</strong> ${l.serviceCreditsUsed} day(s)</div>`:""}
-${l.reason?`<div style="margin-top:3pt;font-size:8pt;"><strong>Details:</strong> ${l.reason}</div>`:""}
-</td></tr></table>
-
-<table><tr><td style="width:60%;"><span class="lbl">6.C NUMBER OF WORKING DAYS APPLIED FOR:</span> <strong>${l.days}</strong> day(s) &nbsp; <span class="lbl">INCLUSIVE DATES:</span> <strong>${l.startDate} to ${l.endDate}</strong></td>
-<td style="width:40%;"><span class="lbl">6.D COMMUTATION:</span>
-&nbsp;<span class="chk">${l.commutable==="No"?checked:unchecked}</span> Not Requested
-&nbsp;<span class="chk">${l.commutable==="Requested"?checked:unchecked}</span> Requested</td></tr>
-<tr><td colspan="2" style="text-align:right;padding:14pt 6pt 4pt;"><strong>${l.requester.toUpperCase()}</strong><br/><em style="font-size:8pt;">(Signature of Applicant)</em></td></tr></table>
-
-<div style="background:#f0f0f0;padding:3pt 6pt;font-weight:bold;font-size:9pt;border:1pt solid #000;border-bottom:none;">7. DETAILS OF ACTION ON APPLICATION</div>
-<table><tr><td style="width:50%;"><div class="lbl">7.A CERTIFICATION OF LEAVE CREDITS</div>
-<div style="margin-top:2pt;">As of <strong>${l.dateActioned||l.dateFiled}</strong></div>
-<table class="credit-table" style="margin-top:4pt;width:100%;"><tr><th></th><th>Vacation Leave</th><th>Sick Leave</th></tr>
-<tr><td><em>Total Earned</em></td><td>${(myCredits.vacationLeave||0)+(l.ledVL||0)}</td><td>${(myCredits.sickLeave||0)+(l.ledSL||0)}</td></tr>
-<tr><td><em>Less this application</em></td><td>${l.type==="Vacation Leave"?l.days:0}</td><td>${l.type==="Sick Leave"?l.days:0}</td></tr>
-<tr><td><em>Balance</em></td><td><strong>${(myCredits.vacationLeave||0)-(l.type==="Vacation Leave"?l.days:0)}</strong></td><td><strong>${(myCredits.sickLeave||0)-(l.type==="Sick Leave"?l.days:0)}</strong></td></tr></table>
-<div style="margin-top:16pt;text-align:center;"><strong>MONINA SARAH M. POMAREJOS, MPA</strong><br/><em style="font-size:8pt;">(Authorized Officer)</em></div></td>
-<td style="width:50%;"><div class="lbl">7.B RECOMMENDATION</div>
-<div class="chk-row" style="margin-top:3pt;"><span class="chk">${l.status==="approved"||l.status==="completed"?checked:unchecked}</span> For approval</div>
-<div class="chk-row"><span class="chk">${l.status==="declined"?checked:unchecked}</span> For disapproval due to: <em>${l.status==="declined"?(l.remarks||""):"_________________"}</em></div>
-${sig}
-<div class="sig-line">WILLIAM A. BUQUIA, Dev.Ed.D.<br/><em style="font-size:8pt;font-weight:normal;">Principal I (Authorized Officer)</em></div></td></tr></table>
-
-<table><tr><td style="width:50%;"><div class="lbl">7.C APPROVED FOR:</div>
-<div class="chk-row" style="margin-top:3pt;"><span class="chk">${l.status==="approved"||l.status==="completed"?checked:unchecked}</span> <strong>${l.status==="approved"||l.status==="completed"?l.days:"___"}</strong> days with pay</div>
-<div class="chk-row"><span class="chk">${unchecked}</span> _____ days without pay</div>
-<div class="chk-row"><span class="chk">${unchecked}</span> others (Specify): _______________</div></td>
-<td style="width:50%;"><div class="lbl">7.D DISAPPROVED DUE TO:</div>
-<div style="min-height:40pt;padding:3pt 0;font-size:8.5pt;">${l.status==="declined"?(l.remarks||""):""}</div>
-${sig}
-<div class="sig-line">WILLIAM A. BUQUIA, Dev.Ed.D.<br/><em style="font-size:8pt;font-weight:normal;">Principal I (Authorized Official)</em></div></td></tr></table>
-
+<tr><td colspan="2" class="sec-hdr">7. DETAILS OF ACTION ON APPLICATION</td></tr>
+<tr><td style="padding:4pt 5pt;width:50%;"><span class="tl-label">7.A CERTIFICATION OF LEAVE CREDITS</span>
+<div style="text-align:center;font-size:8.5pt;margin:3pt 0;">As of <span class="underline" style="min-width:0.8in;">${l.dateActioned||l.dateFiled}</span></div>
+<table class="credit-tbl"><tr><th style="width:40%;"></th><th style="width:30%;">Vacation Leave</th><th style="width:30%;">Sick Leave</th></tr>
+<tr><td class="lbl">Total Earned</td><td>${myCredits.vacationLeave||0}</td><td>${myCredits.sickLeave||0}</td></tr>
+<tr><td class="lbl">Less this application</td><td>${l.type==="Vacation Leave"?l.days:0}</td><td>${l.type==="Sick Leave"?l.days:0}</td></tr>
+<tr><td class="lbl">Balance</td><td><b>${(myCredits.vacationLeave||0)-(l.type==="Vacation Leave"?l.days:0)}</b></td><td><b>${(myCredits.sickLeave||0)-(l.type==="Sick Leave"?l.days:0)}</b></td></tr></table>
+<div style="text-align:center;margin-top:10pt;"><b style="font-size:9pt;">MONINA SARAH M. POMAREJOS, MPA</b></div>
+<div class="sig-sub">(Authorized Officer)</div></td>
+<td style="padding:4pt 5pt;width:50%;"><span class="tl-label">7.B RECOMMENDATION</span>
+<span class="chk-row" style="margin-top:4pt;"><span class="chk">${l.status==="approved"||l.status==="completed"?chk:unc}</span> For approval</span>
+<span class="chk-row"><span class="chk">${l.status==="declined"?chk:unc}</span> For disapproval due <span class="underline" style="min-width:1.6in;">${l.status==="declined"?(l.remarks||""):""}</span></span>
+<div style="margin-top:16pt;text-align:center;">${actionSigBlock}</div>
+<div class="sig-line">WILLIAM A. BUQUIA, Dev.Ed.D.</div>
+<div class="sig-sub">(Authorized Officer)</div></td></tr>
+<tr><td style="padding:4pt 5pt;"><span class="tl-label">7.C APPROVED FOR:</span>
+<span class="chk-row" style="margin-top:2pt;"><span class="underline" style="min-width:0.4in;">${l.status==="approved"||l.status==="completed"?l.days:""}</span> days with pay</span>
+<span class="chk-row"><span class="underline" style="min-width:0.4in;"></span> days without pay</span>
+<span class="chk-row"><span class="underline" style="min-width:0.4in;"></span> others <span class="italic">(Specify)</span> <span class="underline" style="min-width:1in;"></span></span></td>
+<td style="padding:4pt 5pt;"><span class="tl-label">7.D DISAPPROVED DUE TO:</span>
+<div style="min-height:22pt;font-size:8.5pt;margin-top:2pt;border-bottom:0.5pt solid #000;padding-bottom:14pt;">${l.status==="declined"?(l.remarks||""):""}</div>
+<div style="margin-top:6pt;text-align:center;">${actionSigBlock}</div>
+<div class="sig-line">WILLIAM A. BUQUIA, Dev.Ed.D.</div>
+<div class="sig-sub">(Authorized Official)</div></td></tr>
+</table>
 <script>window.onload=function(){setTimeout(function(){window.print();},500);}<\/script></body></html>`;
-      const w=window.open("","_blank","width=850,height=1100");if(w){w.document.write(html);w.document.close();}};
+      const w=window.open("","_blank","width=900,height=1200");if(w){w.document.write(html);w.document.close();}};
 
-    // Download CS Form 6 as DOCX (via HTML -> .doc MS Word compatible file)
+
+    // Download CS Form 6 as DOCX (Word-compatible HTML with long bond page setup)
     const downloadCS6Docx=(l,withSig=true)=>{
-      const checked="☑";const unchecked="☐";
+      const chk="☑";const unc="☐";
       const is=(t)=>l.type===t||l.type?.includes(t);
-      const sigHtml=withSig?`<img src='${E_SIG}' style='height:50px;'/><br/>`:`<br/><br/><br/>`;
+      const nameParts=(l.requester||"").split(",").map(s=>s.trim());
+      const last=nameParts[0]||"";const firstMid=(nameParts[1]||l.requester).split(" ");const first=firstMid[0]||"";const middle=firstMid.slice(1).join(" ")||"";
+      const sigBlock=withSig?`<img src="${E_SIG}" style="height:38pt;"/>`:`<br/><br/>`;
       const html=`<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
 <head><meta charset="utf-8"><title>CS Form 6 - ${l.requester}</title>
-<xml><w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom></w:WordDocument></xml>
-<style>@page{size:8.5in 13in;margin:0.55in;}
-body{font-family:'Bookman Old Style','Times New Roman',serif;font-size:9pt;}
-table{width:100%;border-collapse:collapse;margin-bottom:4pt;}
-td,th{border:1pt solid #000;padding:4pt 6pt;vertical-align:top;font-size:8.5pt;}
-.lbl{font-weight:bold;font-size:8pt;}
-</style></head><body>
-<div style="text-align:center;"><strong>Republic of the Philippines</strong><br/>
+<xml><w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom>
+<w:DoNotOptimizeForBrowser/></w:WordDocument>
+<w:LatentStyles DefLockedState="false"/></xml>
+<style>
+@page Section1 {size:8.5in 13in;mso-page-orientation:portrait;margin:0.4in 0.5in 0.4in 0.5in;mso-header-margin:0.3in;mso-footer-margin:0.3in;}
+div.Section1{page:Section1;}
+body{font-family:'Bookman Old Style','Times New Roman',serif;font-size:9pt;line-height:1.15;}
+table{border-collapse:collapse;width:100%;}
+td{border:0.75pt solid #000;padding:3pt 5pt;vertical-align:top;font-size:8.5pt;}
+.sec-hdr{text-align:center;font-weight:bold;font-size:9.5pt;}
+.chk-row{display:block;margin:1pt 0;font-size:8pt;}
+.fine{font-size:7pt;font-style:italic;}
+</style></head><body><div class="Section1">
+
+<table style="border:none;"><tr style="border:none;">
+<td style="border:none;font-style:italic;font-size:8.5pt;width:50%;">Civil Service Form No.6<br/>Revised 2020</td>
+<td style="border:none;text-align:right;font-weight:bold;width:50%;">ANNEX A</td></tr></table>
+
+<div style="text-align:center;margin-top:4pt;">
+<img src="${DEPED_SEAL}" style="width:0.5in;height:0.5in;"/><br/>
+<span style="font-size:9pt;">Republic of the Philippines</span><br/>
 <span style="font-size:14pt;font-weight:bold;">Department of Education</span><br/>
-Region VII — Central Visayas · Schools Division of Cebu Province<br/>
-<strong>TUNGA ELEMENTARY SCHOOL</strong><br/>
-Brgy. Tunga, Moalboal, Cebu · School ID: 119502</div>
-<p style="text-align:right;font-style:italic;"><em>Civil Service Form No. 6 · Revised 2020 · ANNEX A</em></p>
-<h2 style="text-align:center;text-decoration:underline;">APPLICATION FOR LEAVE</h2>
+<span style="font-size:9.5pt;font-style:italic;">REGION VII – CENTRAL VISAYAS</span><br/>
+<span style="font-size:10pt;font-style:italic;font-weight:bold;">Schools Division of Cebu Province</span></div>
 
-<table><tr><td class="lbl">1. OFFICE/DEPARTMENT:</td><td>Tunga Elementary School, Moalboal District</td>
-<td class="lbl">2. NAME:</td><td>${l.requester}</td></tr>
-<tr><td class="lbl">3. DATE OF FILING:</td><td>${l.dateFiled}</td>
-<td class="lbl">4. POSITION:</td><td>${l.position}</td></tr>
-<tr><td class="lbl">5. SALARY:</td><td colspan="3">${l.salary||"_____________"}</td></tr></table>
+<div style="text-align:center;font-size:14pt;font-weight:bold;margin:8pt 0 4pt;">APPLICATION FOR LEAVE</div>
 
-<h4>6. DETAILS OF APPLICATION</h4>
-<table><tr><td style="width:55%;"><strong>6.A TYPE OF LEAVE</strong><br/>
-${checked} <strong>${l.type}</strong> — ${l.days} day(s)<br/>
-${l.startDate} to ${l.endDate}</td>
-<td style="width:45%;"><strong>6.B DETAILS OF LEAVE</strong><br/>
-${l.whereabouts?`Whereabouts: ${l.whereabouts}<br/>`:""}
-${l.sickType?`Sick Type: ${l.sickType==="hospital"?"In Hospital":"Out Patient"}<br/>`:""}
-${l.illness?`Illness: ${l.illness}<br/>`:""}
-${l.reliever?`<strong>Teacher Reliever:</strong> ${l.reliever}<br/>`:""}
-${l.serviceCreditsUsed?`<strong>Service Credits Applied:</strong> ${l.serviceCreditsUsed} day(s)<br/>`:""}
-${l.reason?`Details: ${l.reason}`:""}</td></tr>
-<tr><td class="lbl">6.C WORKING DAYS APPLIED FOR: <strong>${l.days}</strong>; DATES: ${l.startDate} to ${l.endDate}</td>
-<td class="lbl">6.D COMMUTATION: ${l.commutable}</td></tr></table>
+<table>
+<tr><td style="width:44%;"><b style="font-size:8pt;">1. OFFICE/DEPARTMENT</b><br/>Tunga Elementary School, Moalboal District</td>
+<td style="width:56%;"><b style="font-size:8pt;">2. NAME (Last, First, Middle):</b><br/>
+<span style="border-bottom:0.5pt solid #000;display:inline-block;min-width:1.3in;padding:0 3pt;">${last}</span>&nbsp;
+<span style="border-bottom:0.5pt solid #000;display:inline-block;min-width:1in;padding:0 3pt;">${first}</span>&nbsp;
+<span style="border-bottom:0.5pt solid #000;display:inline-block;min-width:1in;padding:0 3pt;">${middle}</span></td></tr>
+<tr><td colspan="2"><b style="font-size:8pt;">3. DATE OF FILING</b> ${l.dateFiled}
+&nbsp;&nbsp;&nbsp;<b>4. POSITION</b> ${l.position}
+&nbsp;&nbsp;&nbsp;<b>5. SALARY</b> ${l.salary||"__________"}</td></tr>
+<tr><td colspan="2" class="sec-hdr">6. DETAILS OF APPLICATION</td></tr>
+<tr><td style="width:50%;"><b>6.A TYPE OF LEAVE TO BE AVAILED OF</b>
+<div class="chk-row">${is("Vacation Leave")?chk:unc} <b>Vacation Leave</b> <span class="fine">(Sec. 51, Rule XVI, E.O. 292)</span></div>
+<div class="chk-row">${is("Mandatory")||is("Forced")?chk:unc} <b>Mandatory/Forced Leave</b><span class="fine">(Sec. 25, Rule XVI, E.O. 292)</span></div>
+<div class="chk-row">${is("Sick Leave")?chk:unc} <b>Sick Leave</b> <span class="fine">(Sec. 43, Rule XVI, E.O. 292)</span></div>
+<div class="chk-row">${is("Maternity")?chk:unc} <b>Maternity Leave</b> <span class="fine">(R.A. 11210)</span></div>
+<div class="chk-row">${is("Paternity")?chk:unc} <b>Paternity Leave</b> <span class="fine">(R.A. 8187)</span></div>
+<div class="chk-row">${is("Special Privilege")?chk:unc} <b>Special Privilege Leave</b> <span class="fine">(Sec. 21, Rule XVI, E.O. 292)</span></div>
+<div class="chk-row">${is("Solo Parent")?chk:unc} <b>Solo Parent Leave</b> <span class="fine">(RA 8972)</span></div>
+<div class="chk-row">${is("Study Leave")?chk:unc} <b>Study Leave</b> <span class="fine">(Sec. 68, Rule XVI, E.O. 292)</span></div>
+<div class="chk-row">${is("VAWC")?chk:unc} <b>10-Day VAWC Leave</b> <span class="fine">(RA 9262)</span></div>
+<div class="chk-row">${is("Rehabilitation")?chk:unc} <b>Rehabilitation Privilege</b></div>
+<div class="chk-row">${is("Special Leave Benefits")?chk:unc} <b>Special Leave Benefits for Women</b> <span class="fine">(RA 9710)</span></div>
+<div class="chk-row">${is("Calamity")||is("Emergency")?chk:unc} <b>Special Emergency (Calamity) Leave</b></div>
+<div class="chk-row">${is("Adoption")?chk:unc} <b>Adoption Leave</b> <span class="fine">(R.A. 8552)</span></div>
+<div class="chk-row" style="font-style:italic;">Others: ${(is("Wellness")||is("CTO")||is("Others"))?l.type.replace(" (Others)",""):"___________"}</div></td>
+<td style="width:50%;"><b>6.B DETAILS OF LEAVE</b>
+<div style="font-style:italic;font-size:8pt;margin-top:3pt;">In case of Vacation/Special Privilege Leave:</div>
+<div class="chk-row">${l.whereabouts?.toLowerCase().includes("phil")?chk:unc} Within the Philippines</div>
+<div class="chk-row">${l.whereabouts?.toLowerCase().includes("abroad")?chk:unc} Abroad (Specify): ${l.whereabouts?.toLowerCase().includes("abroad")?l.whereabouts.replace(/abroad/i,"").trim():""}</div>
+<div style="font-style:italic;font-size:8pt;margin-top:3pt;">In case of Sick Leave:</div>
+<div class="chk-row">${l.sickType==="hospital"?chk:unc} In Hospital (Specify Illness): ${l.sickType==="hospital"?(l.illness||""):""}</div>
+<div class="chk-row">${l.sickType==="outpatient"?chk:unc} Out Patient (Specify Illness): ${l.sickType==="outpatient"?(l.illness||""):""}</div>
+<div style="font-style:italic;font-size:8pt;margin-top:3pt;">In case of Study Leave:</div>
+<div class="chk-row">${unc} Completion of Master's Degree</div>
+<div class="chk-row">${unc} BAR/Board Examination Review</div>
+<div style="font-style:italic;font-size:8pt;margin-top:3pt;">Other purpose:</div>
+<div class="chk-row">${unc} Monetization of Leave Credits</div>
+<div class="chk-row">${unc} Terminal Leave</div>
+${l.reliever?`<div style="margin-top:3pt;font-size:8pt;"><b>Teacher Reliever:</b> ${l.reliever}</div>`:""}
+${l.serviceCreditsUsed>0?`<div style="font-size:8pt;"><b>Service Credits Applied:</b> ${l.serviceCreditsUsed} day(s)</div>`:""}
+${l.reason?`<div style="margin-top:2pt;font-size:8pt;font-style:italic;">${l.reason}</div>`:""}</td></tr>
+<tr><td><b>6.C NUMBER OF WORKING DAYS APPLIED FOR</b><br/>&nbsp;&nbsp;<b style="font-size:10pt;">${l.days}</b>
+<br/><b>INCLUSIVE DATES</b><br/>&nbsp;&nbsp;${l.startDate} to ${l.endDate}</td>
+<td><b>6.D COMMUTATION</b>
+<div class="chk-row">${l.commutable==="No"||l.commutable==="Not Requested"?chk:unc} Not Requested</div>
+<div class="chk-row">${l.commutable==="Requested"?chk:unc} Requested</div>
+<div style="text-align:right;margin-top:16pt;font-weight:bold;">${l.requester}<br/><span style="font-size:7.5pt;font-style:italic;font-weight:normal;">(Signature of Applicant)</span></div></td></tr>
 
-<p style="text-align:right;margin-top:18pt;"><strong>${l.requester.toUpperCase()}</strong><br/><em>(Signature of Applicant)</em></p>
-
-<h4>7. DETAILS OF ACTION ON APPLICATION</h4>
-<table><tr><td style="width:50%;"><strong>7.A CERTIFICATION OF LEAVE CREDITS</strong><br/>
-As of ${l.dateActioned||l.dateFiled}<br/><br/>
-<table><tr><th></th><th>Vacation Leave</th><th>Sick Leave</th></tr>
-<tr><td>Total Earned</td><td>${myCredits.vacationLeave||0}</td><td>${myCredits.sickLeave||0}</td></tr>
-<tr><td>Less this application</td><td>${l.type==="Vacation Leave"?l.days:0}</td><td>${l.type==="Sick Leave"?l.days:0}</td></tr>
-<tr><td>Balance</td><td><strong>${(myCredits.vacationLeave||0)-(l.type==="Vacation Leave"?l.days:0)}</strong></td><td><strong>${(myCredits.sickLeave||0)-(l.type==="Sick Leave"?l.days:0)}</strong></td></tr></table>
-<br/><div style="text-align:center;"><strong>MONINA SARAH M. POMAREJOS, MPA</strong><br/><em>(Authorized Officer)</em></div></td>
-<td style="width:50%;"><strong>7.B RECOMMENDATION</strong><br/>
-${l.status==="approved"||l.status==="completed"?checked:unchecked} For approval<br/>
-${l.status==="declined"?checked:unchecked} For disapproval due to: ${l.status==="declined"?(l.remarks||""):""}<br/><br/>
-${sigHtml}
-<div style="text-align:center;border-top:1pt solid #000;padding-top:2pt;"><strong>WILLIAM A. BUQUIA, Dev.Ed.D.</strong><br/><em>Principal I (Authorized Officer)</em></div></td></tr>
-<tr><td><strong>7.C APPROVED FOR:</strong><br/>
-${l.status==="approved"||l.status==="completed"?checked:unchecked} <strong>${l.status==="approved"||l.status==="completed"?l.days:"___"}</strong> days with pay</td>
-<td><strong>7.D DISAPPROVED DUE TO:</strong><br/>${l.status==="declined"?(l.remarks||""):""}<br/><br/>
-${sigHtml}
-<div style="text-align:center;border-top:1pt solid #000;padding-top:2pt;"><strong>WILLIAM A. BUQUIA, Dev.Ed.D.</strong></div></td></tr></table>
-</body></html>`;
+<tr><td colspan="2" class="sec-hdr">7. DETAILS OF ACTION ON APPLICATION</td></tr>
+<tr><td style="width:50%;"><b>7.A CERTIFICATION OF LEAVE CREDITS</b><br/>
+<div style="text-align:center;font-size:8.5pt;margin:3pt 0;">As of ${l.dateActioned||l.dateFiled}</div>
+<table style="width:100%;"><tr><th style="width:40%;"></th><th>Vacation Leave</th><th>Sick Leave</th></tr>
+<tr><td style="font-style:italic;">Total Earned</td><td style="text-align:center;">${myCredits.vacationLeave||0}</td><td style="text-align:center;">${myCredits.sickLeave||0}</td></tr>
+<tr><td style="font-style:italic;">Less this application</td><td style="text-align:center;">${l.type==="Vacation Leave"?l.days:0}</td><td style="text-align:center;">${l.type==="Sick Leave"?l.days:0}</td></tr>
+<tr><td style="font-style:italic;">Balance</td><td style="text-align:center;"><b>${(myCredits.vacationLeave||0)-(l.type==="Vacation Leave"?l.days:0)}</b></td><td style="text-align:center;"><b>${(myCredits.sickLeave||0)-(l.type==="Sick Leave"?l.days:0)}</b></td></tr></table>
+<div style="margin-top:12pt;text-align:center;"><b>MONINA SARAH M. POMAREJOS, MPA</b></div>
+<div style="text-align:center;font-size:8pt;font-style:italic;">(Authorized Officer)</div></td>
+<td style="width:50%;"><b>7.B RECOMMENDATION</b>
+<div class="chk-row" style="margin-top:4pt;">${l.status==="approved"||l.status==="completed"?chk:unc} For approval</div>
+<div class="chk-row">${l.status==="declined"?chk:unc} For disapproval due ${l.status==="declined"?(l.remarks||""):""}</div>
+<div style="text-align:center;margin-top:12pt;">${sigBlock}</div>
+<div style="text-align:center;border-top:0.5pt solid #000;padding-top:1pt;font-weight:bold;font-size:9pt;">WILLIAM A. BUQUIA, Dev.Ed.D.</div>
+<div style="text-align:center;font-size:8pt;font-style:italic;">(Authorized Officer)</div></td></tr>
+<tr><td style="width:50%;"><b>7.C APPROVED FOR:</b>
+<div class="chk-row" style="margin-top:2pt;">_____ <b>${l.status==="approved"||l.status==="completed"?l.days:""}</b> days with pay</div>
+<div class="chk-row">_____ days without pay</div>
+<div class="chk-row">_____ others (Specify): ___________</div></td>
+<td style="width:50%;"><b>7.D DISAPPROVED DUE TO:</b>
+<div style="min-height:22pt;font-size:8.5pt;">${l.status==="declined"?(l.remarks||""):""}</div>
+<div style="text-align:center;margin-top:8pt;">${sigBlock}</div>
+<div style="text-align:center;border-top:0.5pt solid #000;padding-top:1pt;font-weight:bold;font-size:9pt;">WILLIAM A. BUQUIA, Dev.Ed.D.</div>
+<div style="text-align:center;font-size:8pt;font-style:italic;">(Authorized Official)</div></td></tr>
+</table>
+</div></body></html>`;
       const blob=new Blob(["\ufeff"+html],{type:"application/msword"});
       const link=document.createElement("a");link.href=URL.createObjectURL(blob);link.download=`CS-Form-6_${l.requester.replace(/[^a-zA-Z0-9]/g,"_")}_${l.dateFiled}.doc`;
       document.body.appendChild(link);link.click();document.body.removeChild(link);setTimeout(()=>URL.revokeObjectURL(link.href),1000);};
@@ -1515,8 +1611,10 @@ ${sigHtml}
               <Btn sm color="#1f6b4e" onClick={()=>{ff("lvRemarks","");ff("lvSig","yes");setModal(`lvA_${l.id}`);}}>{IC.check} Approve</Btn>
               <Btn sm color="#a2321a" outline onClick={()=>{ff("lvRemarks","");setModal(`lvD_${l.id}`);}}>Decline</Btn></>}
             {(l.status==="approved"||l.status==="completed"||l.status==="declined")&&<>
-              <Btn sm color="#0b2a52" outline onClick={()=>printCS6(l,l.signedWithESig!==false)}>{IC.download} PDF</Btn>
-              <Btn sm color="#1f6b4e" outline onClick={()=>downloadCS6Docx(l,l.signedWithESig!==false)}>{IC.download} DOCX</Btn></>}
+              <Btn sm color="#0b2a52" onClick={()=>printCS6(l,true)}>{IC.download} PDF (with sig)</Btn>
+              <Btn sm color="#0b2a52" outline onClick={()=>printCS6(l,false)}>PDF (blank sig)</Btn>
+              <Btn sm color="#1f6b4e" onClick={()=>downloadCS6Docx(l,true)}>{IC.download} DOCX (with sig)</Btn>
+              <Btn sm color="#1f6b4e" outline onClick={()=>downloadCS6Docx(l,false)}>DOCX (blank sig)</Btn></>}
             {(isAdmin||(l.status==="pending"&&l.username===auth.username))&&<button onClick={()=>deleteLeave(l.id)} style={{background:"none",border:"none",cursor:"pointer",color:"var(--ink-faint)"}}>{IC.trash}</button>}</div></div>
         <Modal open={modal===`lvA_${l.id}`} onClose={()=>setModal(null)} title="Approve Leave Request">
           <Inp label="Remarks (optional)" value={f.lvRemarks||""} onChange={v=>ff("lvRemarks",v)} ta ph="e.g. Approved subject to submission of medical certificate..."/>
