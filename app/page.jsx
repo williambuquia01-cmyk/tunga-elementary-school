@@ -369,6 +369,27 @@ export default function App(){
   const totalSections=grades.reduce((a,g)=>a+g.sections.length,0);
   const isAdmin=auth.role==="admin";
 
+  // Leave module constants (hoisted to TESApp so addLeave modal survives re-renders without typing lag)
+  const LEAVE_TYPES=[
+    {v:"Vacation Leave",days:15,code:"VL",pool:"vacationLeave"},
+    {v:"Mandatory/Forced Leave",days:5,code:"FL",pool:"forcedLeave"},
+    {v:"Sick Leave",days:15,code:"SL",pool:"sickLeave"},
+    {v:"Maternity Leave",days:105,code:"MAT",pool:null},
+    {v:"Paternity Leave",days:7,code:"PAT",pool:null},
+    {v:"Special Privilege Leave",days:3,code:"SPL",pool:null},
+    {v:"Solo Parent Leave",days:7,code:"SOLO",pool:null},
+    {v:"Study Leave",days:0,code:"STL",pool:null},
+    {v:"10-Day VAWC Leave",days:10,code:"VAWC",pool:null},
+    {v:"Rehabilitation Privilege",days:0,code:"REHAB",pool:null},
+    {v:"Special Leave Benefits for Women",days:60,code:"SLBW",pool:null},
+    {v:"Special Emergency (Calamity) Leave",days:5,code:"CAL",pool:null},
+    {v:"Adoption Leave",days:60,code:"ADOPT",pool:null},
+    {v:"Wellness Leave (Others)",days:3,code:"WL",pool:"wellnessLeave"},
+    {v:"CTO (Others)",days:0,code:"CTO",pool:"cto"},
+  ];
+  const getMyCredits=()=>{const u=users.find(x=>x.username===auth?.username);return u?.credits||{};};
+  const daysBetween=(s,e)=>{if(!s||!e)return 0;const d1=new Date(s),d2=new Date(e);return Math.round((d2-d1)/(1000*60*60*24))+1;};
+
   const canAccess=(navId)=>{
     if(isAdmin) return true;
     const always=["home","announcements","memos","bulletins","co_schedule","leaves","tmov","ppst","ppssh"];
@@ -1281,32 +1302,11 @@ tr:nth-child(even){background:#f5f7fa;}
 
   /* ═══ LEAVE REQUESTS (DepEd CS Form 6) ═══ */
   const LeavePage=()=>{
-    const LEAVE_TYPES=[
-      {v:"Vacation Leave",days:15,code:"VL"},
-      {v:"Mandatory/Forced Leave",days:5,code:"FL"},
-      {v:"Sick Leave",days:15,code:"SL"},
-      {v:"Maternity Leave",days:105,code:"MAT"},
-      {v:"Paternity Leave",days:7,code:"PAT"},
-      {v:"Special Privilege Leave",days:3,code:"SPL"},
-      {v:"Solo Parent Leave",days:7,code:"SOLO"},
-      {v:"Study Leave",days:0,code:"STL"},
-      {v:"10-Day VAWC Leave",days:10,code:"VAWC"},
-      {v:"Rehabilitation Privilege",days:0,code:"REHAB"},
-      {v:"Special Leave Benefits for Women",days:60,code:"SLBW"},
-      {v:"Special Emergency (Calamity) Leave",days:5,code:"CAL"},
-      {v:"Adoption Leave",days:60,code:"ADOPT"},
-      {v:"Wellness Leave (Others)",days:3,code:"WL"},
-      {v:"CTO (Others)",days:0,code:"CTO"},
-    ];
     const statusColors={pending:"#a8640a",approved:"#1f6b4e",declined:"#a2321a",completed:"#0b2a52"};
     const statusBg={pending:"#faefd8",approved:"#e4efe9",declined:"#f7e2db",completed:"#e8edf5"};
 
-    const daysBetween=(s,e)=>{if(!s||!e)return 0;const d1=new Date(s),d2=new Date(e);return Math.round((d2-d1)/(1000*60*60*24))+1;};
     const deleteLeave=(lid)=>setLeaves(prev=>prev.filter(l=>l.id!==lid));
-
-    // Get user's credits
-    const getCredits=(username)=>{const u=users.find(x=>x.username===username);return u?.credits||{};};
-    const myCredits=getCredits(auth.username);
+    const myCredits=getMyCredits();
 
     // Print CS Form 6 (HTML -> browser print dialog -> save as PDF)
     const printCS6=(l,withSig=true)=>{
@@ -1528,49 +1528,7 @@ ${sigHtml}
           <Btn onClick={()=>{setLeaves(prev=>prev.map(x=>x.id===l.id?{...x,status:"approved",remarks:f.lvRemarks||"",signedWithESig:f.lvSig!=="no",dateActioned:now(),actionedBy:auth.name}:x));setModal(null);}} full color="#1f6b4e">Approve Leave</Btn></Modal>
         <Modal open={modal===`lvD_${l.id}`} onClose={()=>setModal(null)} title="Decline Leave Request">
           <Inp label="Reason for declining" value={f.lvRemarks||""} onChange={v=>ff("lvRemarks",v)} ta ph="Please provide a reason..."/>
-          <Btn onClick={()=>{setLeaves(prev=>prev.map(x=>x.id===l.id?{...x,status:"declined",remarks:f.lvRemarks||"",signedWithESig:true,dateActioned:now(),actionedBy:auth.name}:x));setModal(null);}} full color="#a2321a">Decline Leave</Btn></Modal></div>)}
-
-      <Modal open={modal==="addLeave"} onClose={()=>setModal(null)} title="File Leave Application — CS Form 6" wide>
-        <div style={{background:"var(--brand-1-soft)",borderRadius:8,padding:10,marginBottom:12,fontSize:12,color:"var(--brand-1)"}}>
-          <strong>Filing as:</strong> {auth.name} ({auth.position||auth.role})</div>
-        <Sel label="Type of Leave" value={f.lvType||""} onChange={v=>ff("lvType",v)} options={["Select leave type...",...LEAVE_TYPES.map(lt=>lt.v)]}/>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-          <Inp label="Start Date" value={f.lvStart||""} onChange={v=>ff("lvStart",v)} type="date"/>
-          <Inp label="End Date" value={f.lvEnd||""} onChange={v=>ff("lvEnd",v)} type="date"/></div>
-        {f.lvStart&&f.lvEnd&&<div style={{fontSize:12,color:"var(--brand-1)",marginBottom:10,fontWeight:600}}>📅 Total: {daysBetween(f.lvStart,f.lvEnd)} working day(s)</div>}
-
-        {/* Conditional: Sick Leave — service credits */}
-        {f.lvType==="Sick Leave"&&<div style={{background:"#faefd8",borderRadius:8,padding:12,marginBottom:12,border:"1px solid #a8640a33"}}>
-          <div style={{fontSize:13,fontWeight:600,color:"#a8640a",marginBottom:6}}>🏥 Sick Leave Details</div>
-          <div style={{fontSize:12,color:"var(--ink-muted)",marginBottom:8}}>You have <strong style={{color:"#a8640a"}}>{myCredits.serviceCredits||0} service credits</strong> and <strong style={{color:"#a2321a"}}>{myCredits.sickLeave||0} sick leave days</strong> available.</div>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-            <Sel label="Type" value={f.lvSickType||""} onChange={v=>ff("lvSickType",v)} options={[{value:"",label:"Select..."},{value:"hospital",label:"In Hospital"},{value:"outpatient",label:"Out Patient"}]}/>
-            <Inp label="Service Credits to apply" value={f.lvSC||""} onChange={v=>ff("lvSC",v)} type="number" ph="0"/></div>
-          <Inp label="Specify Illness" value={f.lvIllness||""} onChange={v=>ff("lvIllness",v)} ph="e.g. Influenza, hypertension check-up"/></div>}
-
-        {/* Conditional: Wellness Leave — teacher reliever */}
-        {f.lvType==="Wellness Leave (Others)"&&<div style={{background:"#e4efe9",borderRadius:8,padding:12,marginBottom:12,border:"1px solid #1f6b4e33"}}>
-          <div style={{fontSize:13,fontWeight:600,color:"#1f6b4e",marginBottom:6}}>🌿 Wellness Leave — Teacher Reliever</div>
-          <div style={{fontSize:12,color:"var(--ink-muted)",marginBottom:8}}>You have <strong style={{color:"#1f6b4e"}}>{myCredits.wellnessLeave||0} wellness leave day(s)</strong> available. Specify who will cover your classes during your absence.</div>
-          <Sel label="Teacher Reliever (from list)" value={f.lvRelieverSel||""} onChange={v=>{ff("lvRelieverSel",v);if(v&&v!=="__other__")ff("lvReliever",v);}} options={["Select a teacher...",...users.filter(u=>u.role==="teacher"&&u.username!==auth.username).map(u=>u.name),"__other__"]}/>
-          {(f.lvRelieverSel==="__other__"||!f.lvRelieverSel||f.lvRelieverSel==="Select a teacher...")&&<Inp label="Or type reliever name" value={f.lvReliever||""} onChange={v=>ff("lvReliever",v)} ph="Reliever's full name"/>}</div>}
-
-        <Inp label="Details / Reason" value={f.lvReason||""} onChange={v=>ff("lvReason",v)} ta ph="Purpose of leave, nature of illness, etc."/>
-        <Inp label="Whereabouts during leave" value={f.lvWhere||""} onChange={v=>ff("lvWhere",v)} ph="Within Philippines / Abroad (specify country)"/>
-        <Sel label="Commutation" value={f.lvComm||"No"} onChange={v=>ff("lvComm",v)} options={["No","Requested"]}/>
-        <Btn onClick={()=>{
-          if(!f.lvType||f.lvType==="Select leave type..."||!f.lvStart||!f.lvEnd){alert("Please fill in leave type, start date, and end date");return;}
-          const days=daysBetween(f.lvStart,f.lvEnd);
-          if(days<=0){alert("End date must be after or equal to start date");return;}
-          if(f.lvType==="Sick Leave"&&Number(f.lvSC||0)>(myCredits.serviceCredits||0)){if(!confirm(`⚠️ You're applying ${f.lvSC} service credits but only have ${myCredits.serviceCredits||0}. Submit anyway (admin will review)?`))return;}
-          setLeaves(prev=>[{id:uid(),requester:auth.name,username:auth.username,position:auth.position||auth.role,
-            type:f.lvType,startDate:f.lvStart,endDate:f.lvEnd,days,reason:f.lvReason||"",
-            whereabouts:f.lvWhere||"",commutable:f.lvComm||"No",
-            sickType:f.lvSickType||"",illness:f.lvIllness||"",
-            serviceCreditsUsed:Number(f.lvSC||0),reliever:f.lvReliever||"",
-            status:"pending",dateFiled:now(),remarks:""},...prev]);
-          fr();setModal(null);
-        }} full color="#0b2a52">Submit Leave Application</Btn></Modal></>);};
+          <Btn onClick={()=>{setLeaves(prev=>prev.map(x=>x.id===l.id?{...x,status:"declined",remarks:f.lvRemarks||"",signedWithESig:true,dateActioned:now(),actionedBy:auth.name}:x));setModal(null);}} full color="#a2321a">Decline Leave</Btn></Modal></div>)}</>);};
 
   /* ═══ RENDER ═══ */
   const pages={home:<HomePage/>,students:<StudentsPage/>,grades:<GradesPage/>,personnel:<PersonnelPage/>,coordinators:<CoordsPage/>,
@@ -1644,6 +1602,48 @@ ${sigHtml}
         <Modal open={true} onClose={()=>setModal(null)} title={`Upload to ${subCode}`}>
           <Inp label="Attributed to" value={f.ppt||""} onChange={v=>ff("ppt",v)} ph="Principal / Teacher name"/>
           <FileUploader onUpload={(file)=>{const k=`${did}-${sCode}`;setPpsMovSubs(prev=>({...prev,[k]:(prev[k]||[]).map(s=>s.code===subCode?{...s,files:[...s.files,{...file,id:uid(),teacher:f.ppt||"Principal"}]}:s)}));fr();setModal(null);}} accept=".pdf,.docx,.xlsx,.jpg,.jpeg,.png,.pptx"/></Modal>);})()}
+      {/* ═══ HOISTED LEAVE MODAL (fixes typing lag in CS Form 6 filing) ═══ */}
+      {modal==="addLeave"&&(()=>{const myC=getMyCredits();const daysReq=daysBetween(f.lvStart,f.lvEnd);const selectedLT=LEAVE_TYPES.find(lt=>lt.v===f.lvType);const poolBal=selectedLT?.pool?(myC[selectedLT.pool]||0):null;const isSick=f.lvType==="Sick Leave";const isWellness=f.lvType==="Wellness Leave (Others)";return(
+        <Modal open={true} onClose={()=>setModal(null)} title="File Leave Application — CS Form 6" wide>
+          <div style={{background:"var(--brand-1-soft)",borderRadius:8,padding:10,marginBottom:12,fontSize:12,color:"var(--brand-1)"}}>
+            <strong>Filing as:</strong> {auth.name} ({auth.position||auth.role})</div>
+          <Sel label="Type of Leave" value={f.lvType||""} onChange={v=>ff("lvType",v)} options={["Select leave type...",...LEAVE_TYPES.map(lt=>lt.v)]}/>
+          {poolBal!==null&&<div style={{fontSize:12,marginBottom:10,padding:"6px 10px",borderRadius:6,background:poolBal<daysReq?"#f7e2db":"#e4efe9",color:poolBal<daysReq?"#a2321a":"#1f6b4e",fontWeight:600}}>
+            {poolBal<daysReq?"⚠️":"✓"} You have <strong>{poolBal}</strong> {selectedLT.code} day(s) available{daysReq>0&&`, applying for ${daysReq}`}</div>}
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+            <Inp label="Start Date" value={f.lvStart||""} onChange={v=>ff("lvStart",v)} type="date"/>
+            <Inp label="End Date" value={f.lvEnd||""} onChange={v=>ff("lvEnd",v)} type="date"/></div>
+          {f.lvStart&&f.lvEnd&&<div style={{fontSize:12,color:"var(--brand-1)",marginBottom:10,fontWeight:600}}>📅 Total: {daysReq} working day(s)</div>}
+          {isSick&&<div style={{background:"#faefd8",borderRadius:8,padding:12,marginBottom:12,border:"1px solid #a8640a33"}}>
+            <div style={{fontSize:13,fontWeight:600,color:"#a8640a",marginBottom:6}}>🏥 Sick Leave Details</div>
+            <div style={{fontSize:12,color:"var(--ink-muted)",marginBottom:8}}>You have <strong style={{color:"#a8640a"}}>{myC.serviceCredits||0} service credits</strong> available. Service credits are optional extra coverage for sick leave.</div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+              <Sel label="Type" value={f.lvSickType||""} onChange={v=>ff("lvSickType",v)} options={[{value:"",label:"Select..."},{value:"hospital",label:"In Hospital"},{value:"outpatient",label:"Out Patient"}]}/>
+              <Inp label="Service Credits to apply" value={f.lvSC||""} onChange={v=>ff("lvSC",v)} type="number" ph="0"/></div>
+            <Inp label="Specify Illness" value={f.lvIllness||""} onChange={v=>ff("lvIllness",v)} ph="e.g. Influenza, hypertension check-up"/></div>}
+          {isWellness&&<div style={{background:"#e4efe9",borderRadius:8,padding:12,marginBottom:12,border:"1px solid #1f6b4e33"}}>
+            <div style={{fontSize:13,fontWeight:600,color:"#1f6b4e",marginBottom:6}}>🌿 Wellness Leave — Teacher Reliever</div>
+            <div style={{fontSize:12,color:"var(--ink-muted)",marginBottom:8}}>Specify who will cover your classes during your absence.</div>
+            <Sel label="Teacher Reliever (from list)" value={f.lvRelieverSel||""} onChange={v=>{ff("lvRelieverSel",v);if(v&&v!=="__other__"&&v!=="Select a teacher...")ff("lvReliever",v);}} options={["Select a teacher...",...users.filter(u=>u.role==="teacher"&&u.username!==auth.username).map(u=>u.name),"__other__"]}/>
+            {(f.lvRelieverSel==="__other__"||!f.lvRelieverSel||f.lvRelieverSel==="Select a teacher...")&&<Inp label="Or type reliever name" value={f.lvReliever||""} onChange={v=>ff("lvReliever",v)} ph="Reliever's full name"/>}</div>}
+          <Inp label="Details / Reason" value={f.lvReason||""} onChange={v=>ff("lvReason",v)} ta ph="Purpose of leave, nature of illness, etc."/>
+          <Inp label="Whereabouts during leave" value={f.lvWhere||""} onChange={v=>ff("lvWhere",v)} ph="Within Philippines / Abroad (specify country)"/>
+          <Sel label="Commutation" value={f.lvComm||"No"} onChange={v=>ff("lvComm",v)} options={["No","Requested"]}/>
+          <Btn onClick={()=>{
+            if(!f.lvType||f.lvType==="Select leave type..."||!f.lvStart||!f.lvEnd){alert("Please fill in leave type, start date, and end date");return;}
+            const days=daysBetween(f.lvStart,f.lvEnd);
+            if(days<=0){alert("End date must be after or equal to start date");return;}
+            const lt=LEAVE_TYPES.find(x=>x.v===f.lvType);const pb=lt?.pool?(myC[lt.pool]||0):null;
+            if(pb!==null&&days>pb){if(!confirm(`⚠️ Insufficient ${lt.code} credits.\n\nYou have ${pb} day(s), applying for ${days} day(s).\n\nSubmit anyway? (admin will see the shortfall and may decline)`))return;}
+            if(f.lvType==="Sick Leave"&&Number(f.lvSC||0)>(myC.serviceCredits||0)){if(!confirm(`⚠️ You're applying ${f.lvSC} service credits but only have ${myC.serviceCredits||0}. Submit anyway?`))return;}
+            setLeaves(prev=>[{id:uid(),requester:auth.name,username:auth.username,position:auth.position||auth.role,
+              type:f.lvType,startDate:f.lvStart,endDate:f.lvEnd,days,reason:f.lvReason||"",
+              whereabouts:f.lvWhere||"",commutable:f.lvComm||"No",
+              sickType:f.lvSickType||"",illness:f.lvIllness||"",
+              serviceCreditsUsed:Number(f.lvSC||0),reliever:f.lvReliever||"",
+              status:"pending",dateFiled:now(),remarks:""},...prev]);
+            fr();setModal(null);
+          }} full color="#0b2a52">Submit Leave Application</Btn></Modal>);})()}
       <style>{`
 @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@300;400;500;600;700&display=swap');
 :root{
