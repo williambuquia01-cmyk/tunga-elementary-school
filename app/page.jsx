@@ -453,6 +453,8 @@ export default function App(){
   const StudentsPage=()=>{
     const[sg,setSg]=useState(null);const[ss,setSs]=useState(null);const[tab,setTab]=useState("sections");
     const csvRef=useRef();
+    // Compute age (in years) from DOB string yyyy-mm-dd
+    const ageOf=(dob)=>{if(!dob)return"";const d=new Date(dob);if(isNaN(d))return"";const t=new Date();let a=t.getFullYear()-d.getFullYear();const m=t.getMonth()-d.getMonth();if(m<0||(m===0&&t.getDate()<d.getDate()))a--;return a>=0&&a<150?a:"";};
     const addSt=()=>{if(!f.sn?.trim())return;
       setGrades(prev=>prev.map((g,i)=>i===sg?{...g,sections:g.sections.map((s,j)=>j===ss?{...s,students:[...(s.students||[]),{id:uid(),name:f.sn.trim(),lrn:f.sl||"",sex:f.sx||"M",dob:f.sd||"",is4ps:false,transfer:""}]}:s)}:g));fr();setModal(null);};
     const delSt=(gi,si,sid)=>setGrades(prev=>prev.map((g,i)=>i===gi?{...g,sections:g.sections.map((s,j)=>j===si?{...s,students:(s.students||[]).filter(x=>x.id!==sid)}:s)}:g));
@@ -463,15 +465,30 @@ export default function App(){
       const nameI=hdr.findIndex(h=>h.includes("name")||h.includes("learner"));const lrnI=hdr.findIndex(h=>h.includes("lrn"));
       const sexI=hdr.findIndex(h=>h.includes("sex")||h.includes("gender"));const fourPsI=hdr.findIndex(h=>h.includes("4ps")||h.includes("pantawid"));
       const transI=hdr.findIndex(h=>h.includes("transfer")||h.includes("trans"));
+      const dobI=hdr.findIndex(h=>h.includes("birth")||h.includes("dob"));
       if(nameI<0){alert("CSV must have a 'Name' or 'Learner' column");return;}
       const ns=[];for(let i=1;i<lines.length;i++){const cols=lines[i].split(",").map(c=>c.trim().replace(/"/g,""));
         const name=cols[nameI]||"";if(!name)continue;
         ns.push({id:uid(),name,lrn:lrnI>=0?cols[lrnI]||"":"",sex:sexI>=0?(cols[sexI]||"M").toUpperCase().startsWith("F")?"F":"M":"M",
+          dob:dobI>=0?cols[dobI]||"":"",
           is4ps:fourPsI>=0?["yes","y","true","1","4ps"].includes((cols[fourPsI]||"").toLowerCase()):false,
           transfer:transI>=0?cols[transI]||"":""});}
       if(!ns.length){alert("No students found");return;}
       setGrades(prev=>prev.map((g,i)=>i===gi?{...g,sections:g.sections.map((s,j)=>j===si?{...s,students:[...(s.students||[]),...ns]}:s)}:g));
       alert(`${ns.length} students imported!`);};reader.readAsText(file);};
+
+    /* Admin: Bulk Download — entire roster across all grades/sections as one CSV */
+    const downloadBulkRoster=()=>{
+      const rows=[["Grade","Section","Adviser","Name","LRN","Sex","Date of Birth","Age","4Ps","Transfer Status"]];
+      grades.forEach(g=>g.sections.forEach(s=>(s.students||[]).forEach(st=>{
+        rows.push([g.grade,s.name,s.adviser||"",st.name,st.lrn||"",st.sex||"",st.dob||"",ageOf(st.dob)||"",st.is4ps?"Yes":"No",st.transfer||""]);
+      })));
+      if(rows.length===1){alert("No students enrolled yet.");return;}
+      const csv=rows.map(r=>r.map(c=>{const s=String(c);return /[",\n]/.test(s)?`"${s.replace(/"/g,'""')}"`:s;}).join(",")).join("\r\n");
+      const blob=new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"});
+      const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`Tunga-ES_Master-Roster_SY-${sy}_${new Date().toISOString().split("T")[0]}.csv`;
+      document.body.appendChild(a);a.click();document.body.removeChild(a);setTimeout(()=>URL.revokeObjectURL(url),1000);
+      alert(`Master roster exported: ${rows.length-1} learners across ${grades.reduce((a,g)=>a+g.sections.length,0)} sections.`);};
 
     /* SF2 PDF — Daily Attendance */
     const genSF2=(grade,section,students)=>{
@@ -542,8 +559,9 @@ th{background:#1B4D7E;color:#fff;font-size:9pt;}.sum{background:#e8f0fe;font-wei
 
       {/* ── CONSOLIDATION TAB (admin only) ── */}
       {tab==="consolidation"&&isAdmin&&(<div>
-        <div style={{background:"#e8f0fe",borderRadius:10,padding:12,marginBottom:14,fontSize:12,color:"#1B4D7E"}}>
-          <strong>School-Wide Consolidation · SY {sy}</strong> — Summary of all sections. Only visible to admin.</div>
+        <div style={{background:"#e8f0fe",borderRadius:10,padding:12,marginBottom:14,fontSize:12,color:"#1B4D7E",display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:8}}>
+          <div><strong>School-Wide Consolidation · SY {sy}</strong> — Summary of all sections. Only visible to admin.</div>
+          <Btn sm color="#2E6B4F" onClick={downloadBulkRoster}>{IC.download} Master Roster (CSV)</Btn></div>
         <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:14}}>
           {[{l:"Total Learners",v:allData.reduce((a,d)=>a+d.total,0),c:"#1B4D7E"},{l:"Male",v:allData.reduce((a,d)=>a+d.male,0),c:"#1565C0"},
             {l:"Female",v:allData.reduce((a,d)=>a+d.female,0),c:"#C62828"},{l:"4Ps",v:allData.reduce((a,d)=>a+d.fps,0),c:"#7D6608"},
@@ -589,14 +607,20 @@ th{background:#1B4D7E;color:#fff;font-size:9pt;}.sum{background:#e8f0fe;font-wei
         {["M","F"].map(sex=>{const list=sts.filter(x=>x.sex===sex);return<div key={sex} style={{marginBottom:14}}>
           <div style={{fontSize:13,fontWeight:600,color:sex==="M"?"#1B4D7E":"#943126",marginBottom:6,padding:"4px 10px",background:sex==="M"?"#e8f0fe":"#fde8e8",borderRadius:6,display:"inline-block"}}>{sex==="M"?"MALE":"FEMALE"} ({list.length})</div>
           {list.map((s,i)=><div key={s.id} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 12px",background:"#fff",borderRadius:8,marginBottom:3,border:"1px solid #f0f0f0"}}>
-            <span style={{fontSize:12,color:"#999",width:24}}>{i+1}.</span><div style={{flex:1}}><div style={{fontSize:13,fontWeight:500}}>{s.name}{s.is4ps&&<span style={{fontSize:10,color:"#7D6608",marginLeft:6,fontWeight:600}}>4Ps</span>}{s.transfer&&<span style={{fontSize:10,color:"#2E6B4F",marginLeft:6}}>{s.transfer}</span>}</div><div style={{fontSize:11,color:"#999"}}>LRN: {s.lrn||"—"}</div></div>
+            <span style={{fontSize:12,color:"#999",width:24}}>{i+1}.</span><div style={{flex:1}}><div style={{fontSize:13,fontWeight:500}}>{s.name}{s.is4ps&&<span style={{fontSize:10,color:"#7D6608",marginLeft:6,fontWeight:600}}>4Ps</span>}{s.transfer&&<span style={{fontSize:10,color:"#2E6B4F",marginLeft:6}}>{s.transfer}</span>}</div>
+            <div style={{fontSize:11,color:"#999"}}>LRN: {s.lrn||"—"}{s.dob?` · DOB: ${s.dob}${ageOf(s.dob)?` (Age ${ageOf(s.dob)})`:""}`:""}</div></div>
             <button onClick={()=>delSt(sg,ss,s.id)} style={{background:"none",border:"none",cursor:"pointer",color:"#c0392b"}}>{IC.trash}</button></div>)}</div>})}
-        <Modal open={modal==="addSt"} onClose={()=>setModal(null)} title="Add student">
+        <Modal open={modal==="addSt"} onClose={()=>setModal(null)} title="Enroll Student">
           <Inp label="Full name (Last, First, Middle)" value={f.sn||""} onChange={v=>ff("sn",v)} ph="ALEGADO, ARC FRITZ, MACASAOL"/>
           <Inp label="LRN" value={f.sl||""} onChange={v=>ff("sl",v)} ph="12-digit LRN"/>
-          <div style={{marginBottom:12}}><label style={{fontSize:13,fontWeight:500,color:"#666",display:"block",marginBottom:3}}>Sex</label>
-            <div style={{display:"flex",gap:8}}>{["M","F"].map(s=><button key={s} onClick={()=>ff("sx",s)} style={{padding:"7px 20px",borderRadius:8,border:f.sx===s?"2px solid #1B4D7E":"2px solid #e4e7ec",background:f.sx===s?"#1B4D7E":"#fff",color:f.sx===s?"#fff":"#333",fontWeight:600,cursor:"pointer",fontSize:13}}>{s==="M"?"Male":"Female"}</button>)}</div></div>
-          <Btn onClick={addSt} full>Add student</Btn></Modal></>)}</>)}</>);};
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+            <Inp label="Date of Birth" value={f.sd||""} onChange={v=>ff("sd",v)} type="date"/>
+            <div><label style={{fontSize:13,fontWeight:500,color:"#666",display:"block",marginBottom:3}}>Age (auto)</label>
+              <div style={{padding:"8px 12px",borderRadius:8,background:"#f0f4f8",border:"1px solid #e4e7ec",fontSize:13,fontWeight:600,color:"#1B4D7E",height:38,display:"flex",alignItems:"center"}}>{f.sd?(ageOf(f.sd)!==""?`${ageOf(f.sd)} years old`:"—"):"Enter DOB first"}</div></div>
+          </div>
+          <div style={{marginBottom:12,marginTop:8}}><label style={{fontSize:13,fontWeight:500,color:"#666",display:"block",marginBottom:3}}>Sex</label>
+            <div style={{display:"flex",gap:8}}>{[{v:"M",l:"♂ Male",bg:"#1565C0"},{v:"F",l:"♀ Female",bg:"#C62828"}].map(s=><button key={s.v} onClick={()=>ff("sx",s.v)} style={{padding:"7px 20px",borderRadius:8,border:f.sx===s.v?`2px solid ${s.bg}`:"2px solid #e4e7ec",background:f.sx===s.v?s.bg:"#fff",color:f.sx===s.v?"#fff":"#333",fontWeight:600,cursor:"pointer",fontSize:13,fontFamily:"inherit"}}>{s.l}</button>)}</div></div>
+          <Btn onClick={addSt} full>Enroll Student</Btn></Modal></>)}</>)}</>);};
 
   /* ═══ SECTIONS ═══ */
   const GradesPage=()=>{
@@ -1409,7 +1433,7 @@ td{border:0.75pt solid #000;padding:3pt 5pt;vertical-align:top;font-size:8.5pt;l
 <span class="chk-row"><span class="chk">${is("Special Leave Benefits")?chk:unc}</span> <span class="lbl">Special Leave Benefits for Women</span> <span class="fine">(RA No. 9710 / CSC MC No. 25, s.2010)</span></span>
 <span class="chk-row"><span class="chk">${is("Calamity")||is("Emergency")?chk:unc}</span> <span class="lbl">Special Emergency (Calamity) Leave</span> <span class="fine">(CSC MC No. 2, s. 2012, as amended)</span></span>
 <span class="chk-row"><span class="chk">${is("Adoption")?chk:unc}</span> <span class="lbl">Adoption Leave</span><span class="fine">(R.A. No. 8552)</span></span>
-<span class="chk-row italic" style="margin-top:2pt;">Others: <span class="underline" style="min-width:1.4in;">${(is("Wellness")||is("CTO")||is("Others"))?l.type.replace(" (Others)",""):""}</span></span></td>
+<span class="chk-row italic" style="margin-top:2pt;">Others: <span class="underline" style="min-width:1.4in;">${(is("Wellness")||is("CTO")||is("Mental Health")||is("Service Credits")||is("Others"))?l.type.replace(/^Others:\s*/,"").replace(" (Others)",""):""}</span></span></td>
 <td style="width:50%;padding:4pt 5pt;"><span class="tl-label">6.B DETAILS OF LEAVE</span>
 <div class="detail-label">In case of Vacation/Special Privilege Leave:</div>
 <span class="chk-row"><span class="chk">${l.whereabouts?.toLowerCase().includes("phil")?chk:unc}</span> Within the Philippines <span class="underline" style="min-width:1.2in;"></span></span>
@@ -1524,7 +1548,7 @@ td{border:0.75pt solid #000;padding:3pt 5pt;vertical-align:top;font-size:8.5pt;}
 <div class="chk-row">${is("Special Leave Benefits")?chk:unc} <b>Special Leave Benefits for Women</b> <span class="fine">(RA 9710)</span></div>
 <div class="chk-row">${is("Calamity")||is("Emergency")?chk:unc} <b>Special Emergency (Calamity) Leave</b></div>
 <div class="chk-row">${is("Adoption")?chk:unc} <b>Adoption Leave</b> <span class="fine">(R.A. 8552)</span></div>
-<div class="chk-row" style="font-style:italic;">Others: ${(is("Wellness")||is("CTO")||is("Others"))?l.type.replace(" (Others)",""):"___________"}</div></td>
+<div class="chk-row" style="font-style:italic;">Others: ${(is("Wellness")||is("CTO")||is("Mental Health")||is("Service Credits")||is("Others"))?l.type.replace(/^Others:\s*/,"").replace(" (Others)",""):"___________"}</div></td>
 <td style="width:50%;"><b>6.B DETAILS OF LEAVE</b>
 <div style="font-style:italic;font-size:8pt;margin-top:3pt;">In case of Vacation/Special Privilege Leave:</div>
 <div class="chk-row">${l.whereabouts?.toLowerCase().includes("phil")?chk:unc} Within the Philippines</div>
