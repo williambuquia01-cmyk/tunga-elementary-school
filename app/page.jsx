@@ -386,7 +386,7 @@ async function buildCS6Docx_v2(leave, withSig) {
   // DATE OF FILING — covers: label, spacing-46 space-run, single-underline tab, plain tab
   const dateBlock = `<w:t>DATE OF FILING</w:t></w:r><w:r><w:rPr><w:spacing w:val="46"/><w:position w:val="2"/><w:sz w:val="16"/></w:rPr><w:t xml:space="preserve"> </w:t></w:r><w:r><w:rPr><w:position w:val="2"/><w:sz w:val="16"/><w:u w:val="single"/></w:rPr><w:tab/></w:r><w:r><w:rPr><w:position w:val="2"/><w:sz w:val="16"/></w:rPr><w:tab/></w:r>`;
   if (xml.includes(dateBlock)) {
-    xml = xml.replace(dateBlock, `<w:t xml:space="preserve">DATE OF FILING  </w:t></w:r><w:r><w:rPr><w:sz w:val="16"/><w:u w:val="single"/></w:rPr><w:t xml:space="preserve">${xe(leave.dateFiled||"")}</w:t></w:r><w:r><w:rPr><w:sz w:val="16"/></w:rPr><w:tab/></w:r>`);
+    xml = xml.replace(dateBlock, `<w:t xml:space="preserve">DATE OF FILING </w:t></w:r><w:r><w:rPr><w:sz w:val="16"/><w:u w:val="single"/></w:rPr><w:t xml:space="preserve"> ${xe(leave.dateFiled||"")} </w:t></w:r><w:r><w:rPr><w:sz w:val="16"/></w:rPr><w:t xml:space="preserve">          </w:t></w:r>`);
   }
 
   // POSITION — covers: label, spacing-43 space, single-underline tab
@@ -448,6 +448,76 @@ async function buildCS6Docx_v2(leave, withSig) {
     const replacement = `<w:tcW w:w="${widthAttr}" w:type="dxa"/></w:tcPr><w:p w:rsidR="005002FD" w:rsidRDefault="005002FD"><w:pPr><w:pStyle w:val="TableParagraph"/><w:jc w:val="center"/><w:rPr><w:rFonts w:ascii="Times New Roman"/><w:sz w:val="16"/></w:rPr></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman"/><w:sz w:val="16"/></w:rPr><w:t>${xe(val)}</w:t></w:r></w:p></w:tc>`;
     xml = xml.replace(emptyCellRegex, replacement);
     creditIdx++;
+  }
+
+  // ─── PHASE 3: Mark the selected leave type with ☑ inline next to its label ───
+  // We can't easily check the existing VML checkbox graphic, so instead we
+  // prepend a bold ☑ character right before the leave-type text. This is
+  // visually unmistakable and works in any Word version.
+  const checkRunPrefix = `<w:r><w:rPr><w:rFonts w:ascii="Arial Unicode MS" w:hAnsi="Arial Unicode MS"/><w:b/><w:sz w:val="20"/><w:color w:val="000000"/></w:rPr><w:t xml:space="preserve">☑ </w:t></w:r>`;
+  
+  const checkboxAnchors = {
+    "Vacation Leave":                       `<w:t xml:space="preserve">Vacation Leave </w:t>`,
+    "Mandatory/Forced Leave":               `<w:t xml:space="preserve">Mandatory/Forced </w:t>`,
+    "Sick Leave":                           `<w:t>Sick Leave</w:t>`,
+    "Maternity Leave":                      `<w:t xml:space="preserve">Maternity Leave </w:t>`,
+    "Paternity Leave":                      `<w:t>Paternity Leave</w:t>`,
+    "Special Privilege Leave":              `<w:t>Special</w:t>`,
+    "Solo Parent Leave":                    `<w:t>Solo</w:t>`,
+    "Study Leave":                          `<w:t>Study</w:t>`,
+    "10-Day VAWC Leave":                    `<w:t>VAWC</w:t>`,
+    "Rehabilitation Privilege":             `<w:t>Rehabilitation</w:t>`,
+    "Special Leave Benefits for Women":     `<w:t xml:space="preserve">Special Leave Benefits for </w:t>`,
+    "Special Emergency (Calamity) Leave":   `<w:t xml:space="preserve">Special Emergency (Calamity) Leave </w:t>`,
+    "Adoption Leave":                       `<w:t xml:space="preserve">Adoption </w:t>`,
+  };
+  
+  // The leave's type may be the official type, "Others: <free text>", or a synonym.
+  // Match logic: find which official label this leave applies to.
+  const matchType = (l) => {
+    const t = l.type || "";
+    if (t.startsWith("Others:")) return null; // No checkbox match → goes in Others row
+    // Exact matches first
+    if (checkboxAnchors[t]) return t;
+    // Fuzzy: match by includes
+    for (const k of Object.keys(checkboxAnchors)) {
+      if (t.includes(k) || k.includes(t)) return k;
+    }
+    return null;
+  };
+  
+  const matchedType = matchType(leave);
+  if (matchedType && checkboxAnchors[matchedType]) {
+    const anchor = checkboxAnchors[matchedType];
+    // Replace ONLY THE FIRST occurrence — ensures we don't accidentally hit "Vacation" elsewhere
+    const firstIdx = xml.indexOf(anchor);
+    if (firstIdx >= 0) {
+      // Find the start of the run containing this <w:t>
+      const runStart = xml.lastIndexOf("<w:r>", firstIdx) >= 0 
+        ? xml.lastIndexOf("<w:r>", firstIdx) 
+        : xml.lastIndexOf("<w:r ", firstIdx);
+      if (runStart >= 0) {
+        // Insert our check-run BEFORE the existing run
+        xml = xml.slice(0, runStart) + checkRunPrefix + xml.slice(runStart);
+      }
+    }
+  }
+  
+  // Always inject "Others" text if leave type starts with "Others:" or is one of the special types
+  // that has no explicit checkbox (Wellness, Mental Health, Service Credits, CTO)
+  const othersTypes = ["Wellness Leave", "Mental Health Leave", "Service Credits", "CTO"];
+  let othersText = "";
+  if (leave.type?.startsWith("Others:")) {
+    othersText = leave.type.replace(/^Others:\s*/, "");
+  } else if (othersTypes.includes(leave.type)) {
+    othersText = leave.type;
+  }
+  if (othersText) {
+    // Inject after "Others:" anchor
+    xml = xml.replace(
+      `<w:t>Others:</w:t>`,
+      `<w:t xml:space="preserve">Others: </w:t></w:r>${checkRunPrefix}<w:r><w:rPr><w:rFonts w:ascii="Arial"/><w:b/><w:sz w:val="16"/></w:rPr><w:t xml:space="preserve">${xe(othersText)}</w:t>`
+    );
   }
 
   // ─── 9. 7.C "days with pay" — only fill if approved ───
