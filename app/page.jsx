@@ -335,15 +335,60 @@ const loadJSZip = () => {
   return _jszipPromise;
 };
 
-// Phase 1: Fetch template, repack with JSZip, return Blob.
-// No data injection yet — just proves the round-trip works.
+// Phase 2a: Fetch template, inject NAME (Last/First/Middle) only.
+// Strategy: replace the label text "(Last)" with "ACTUAL_NAME (Last)" inside word/document.xml.
+// Same for (First) and (Middle). All other fields remain blank for now.
+async function buildCS6Docx_v2(leave, withSig) {
+  const JSZip = await loadJSZip();
+  const resp = await fetch(CS6_TEMPLATE_URL);
+  if (!resp.ok) throw new Error("Template fetch failed: HTTP " + resp.status);
+  const buf = await resp.arrayBuffer();
+  const zip = await JSZip.loadAsync(buf);
+
+  // Parse the requester name into Last / First / Middle
+  const parseName = (full) => {
+    const s = (full || "").trim();
+    if (!s) return { last: "", first: "", middle: "" };
+    if (s.includes(",")) {
+      const [l1, rest] = s.split(/,\s*/);
+      const tok = (rest || "").split(/\s+/).filter(Boolean);
+      return { last: l1.trim(), first: tok[0] || "", middle: tok.slice(1).join(" ") };
+    }
+    const tok = s.split(/\s+/).filter(Boolean);
+    if (tok.length === 1) return { last: tok[0], first: "", middle: "" };
+    if (tok.length === 2) return { last: tok[1], first: tok[0], middle: "" };
+    return { last: tok[tok.length - 1], first: tok[0], middle: tok.slice(1, -1).join(" ") };
+  };
+  const { last, first, middle } = parseName(leave.requester);
+
+  // Escape for XML
+  const xe = (s) => String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+  // Read document.xml as text, modify, write back
+  const docXml = zip.file("word/document.xml");
+  if (!docXml) throw new Error("document.xml not found in template");
+  let xml = await docXml.async("string");
+
+  // Phase 2a: simple text injection — prepend value to the label
+  // Original: <w:t>(Last)</w:t>  →  <w:t xml:space="preserve">DELA CRUZ </w:t>...<w:t>(Last)</w:t>
+  // To keep structural simplicity, we replace the label text inline with name + label
+  // The labels appear ONLY ONCE each, so this is safe.
+  if (last)   xml = xml.replace(/<w:t>\(Last\)<\/w:t>/, `<w:t xml:space="preserve">${xe(last)}  </w:t></w:r><w:r><w:rPr><w:sz w:val="14"/></w:rPr><w:t>(Last)</w:t>`);
+  if (first)  xml = xml.replace(/<w:t>\(First\)<\/w:t>/, `<w:t xml:space="preserve">${xe(first)}  </w:t></w:r><w:r><w:rPr><w:sz w:val="14"/></w:rPr><w:t>(First)</w:t>`);
+  if (middle) xml = xml.replace(/<w:t>\(Middle\)<\/w:t>/, `<w:t xml:space="preserve">${xe(middle)}  </w:t></w:r><w:r><w:rPr><w:sz w:val="14"/></w:rPr><w:t>(Middle)</w:t>`);
+
+  zip.file("word/document.xml", xml);
+
+  return await zip.generateAsync({ type: "blob", mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
+}
+
+// Phase 1: kept around for fallback testing
 async function buildCS6Docx_v1(leave, withSig) {
   const JSZip = await loadJSZip();
   const resp = await fetch(CS6_TEMPLATE_URL);
   if (!resp.ok) throw new Error("Template fetch failed: HTTP " + resp.status);
   const buf = await resp.arrayBuffer();
   const zip = await JSZip.loadAsync(buf);
-  // Phase 1: just repack as-is, no modifications
   return await zip.generateAsync({ type: "blob", mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
 }
 
@@ -1710,13 +1755,13 @@ ${l.reason?`<div style="margin-top:2pt;font-size:8pt;font-style:italic;">${l.rea
               <Btn sm color="#1f6b4e" outline onClick={()=>downloadCS6Docx(l,false)}>DOCX (blank sig)</Btn>
               <Btn sm color="#a8640a" outline onClick={async()=>{
                 try{
-                  const blob=await buildCS6Docx_v1(l,true);
+                  const blob=await buildCS6Docx_v2(l,true);
                   const url=URL.createObjectURL(blob);
                   const a=document.createElement("a");a.href=url;a.download=`CS-Form-6_NEW_${l.requester.replace(/[^a-zA-Z0-9]/g,"_")}_${l.dateFiled}.docx`;
                   document.body.appendChild(a);a.click();document.body.removeChild(a);
                   setTimeout(()=>URL.revokeObjectURL(url),1000);
-                  alert("Phase 1 OK: template downloaded successfully. Open it in Word to verify it looks identical to the original blank form.");
-                }catch(e){alert("Phase 1 failed: "+e.message);console.error(e);}
+                  alert("Phase 2a: name-injected DOCX downloaded. Open in Word and check the NAME row.");
+                }catch(e){alert("Phase 2a failed: "+e.message);console.error(e);}
               }}>🧪 NEW DOCX (test)</Btn></>}
             {(isAdmin||(l.status==="pending"&&l.username===auth.username))&&<button onClick={()=>deleteLeave(l.id)} style={{background:"none",border:"none",cursor:"pointer",color:"var(--ink-faint)"}}>{IC.trash}</button>}</div></div></div>)}</>);};
 
