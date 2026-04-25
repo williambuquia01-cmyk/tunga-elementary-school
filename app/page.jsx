@@ -378,53 +378,52 @@ async function buildCS6Docx_v2(leave, withSig) {
   if (first)  xml = xml.replace(/<w:t>\(First\)<\/w:t>/, `<w:t xml:space="preserve">${xe(first)}  </w:t></w:r><w:r><w:rPr><w:sz w:val="14"/></w:rPr><w:t>(First)</w:t>`);
   if (middle) xml = xml.replace(/<w:t>\(Middle\)<\/w:t>/, `<w:t xml:space="preserve">${xe(middle)}  </w:t></w:r><w:r><w:rPr><w:sz w:val="14"/></w:rPr><w:t>(Middle)</w:t>`);
 
-  // ─── 2-7. SIMPLE TEXT FIELDS ───
-  // For each label in row 3 (DATE OF FILING, POSITION, SALARY), we replace the spacing-run
-  // that comes RIGHT AFTER the label closes — that's where the value should appear.
-  // Original: <w:t>DATE OF FILING</w:t></w:r><w:r ...spacing 46...><w:t> </w:t></w:r>
-  //                                                                  ^^^^ replace this run
+  // ─── 2-7. SIMPLE TEXT FIELDS — replace the WHOLE label+space+tab zone with our content ───
+  // Strategy: for each label, find the unique full pattern including the trailing tab(s),
+  // then replace with the same structure but containing our value as plain text.
+  // Using normal-baseline run (no w:position offset) avoids font kerning glitches.
 
-  // DATE OF FILING — anchor uniquely identifies the spacing-run after the label
-  const dateAnchor = `<w:t>DATE OF FILING</w:t></w:r><w:r><w:rPr><w:spacing w:val="46"/><w:position w:val="2"/><w:sz w:val="16"/></w:rPr><w:t xml:space="preserve"> </w:t></w:r>`;
-  if (xml.includes(dateAnchor)) {
-    xml = xml.replace(dateAnchor, `<w:t>DATE OF FILING</w:t></w:r><w:r><w:rPr><w:spacing w:val="46"/><w:position w:val="2"/><w:sz w:val="16"/></w:rPr><w:t xml:space="preserve"> ${xe(leave.dateFiled||"")} </w:t></w:r>`);
+  // DATE OF FILING — covers: label, spacing-46 space-run, single-underline tab, plain tab
+  const dateBlock = `<w:t>DATE OF FILING</w:t></w:r><w:r><w:rPr><w:spacing w:val="46"/><w:position w:val="2"/><w:sz w:val="16"/></w:rPr><w:t xml:space="preserve"> </w:t></w:r><w:r><w:rPr><w:position w:val="2"/><w:sz w:val="16"/><w:u w:val="single"/></w:rPr><w:tab/></w:r><w:r><w:rPr><w:position w:val="2"/><w:sz w:val="16"/></w:rPr><w:tab/></w:r>`;
+  if (xml.includes(dateBlock)) {
+    xml = xml.replace(dateBlock, `<w:t xml:space="preserve">DATE OF FILING  </w:t></w:r><w:r><w:rPr><w:sz w:val="16"/><w:u w:val="single"/></w:rPr><w:t xml:space="preserve">${xe(leave.dateFiled||"")}</w:t></w:r><w:r><w:rPr><w:sz w:val="16"/></w:rPr><w:tab/></w:r>`);
   }
 
-  // POSITION
-  const posAnchor = `<w:t>POSITION</w:t></w:r><w:r><w:rPr><w:spacing w:val="43"/><w:sz w:val="16"/></w:rPr><w:t xml:space="preserve"> </w:t></w:r>`;
-  if (xml.includes(posAnchor)) {
-    xml = xml.replace(posAnchor, `<w:t>POSITION</w:t></w:r><w:r><w:rPr><w:spacing w:val="43"/><w:sz w:val="16"/></w:rPr><w:t xml:space="preserve"> ${xe(leave.position||"")} </w:t></w:r>`);
+  // POSITION — covers: label, spacing-43 space, single-underline tab
+  const posBlock = `<w:t>POSITION</w:t></w:r><w:r><w:rPr><w:spacing w:val="43"/><w:sz w:val="16"/></w:rPr><w:t xml:space="preserve"> </w:t></w:r><w:r><w:rPr><w:sz w:val="16"/><w:u w:val="single"/></w:rPr><w:tab/></w:r>`;
+  if (xml.includes(posBlock)) {
+    xml = xml.replace(posBlock, `<w:t xml:space="preserve">POSITION  </w:t></w:r><w:r><w:rPr><w:sz w:val="16"/><w:u w:val="single"/></w:rPr><w:t xml:space="preserve">${xe(leave.position||"")}</w:t></w:r><w:r><w:rPr><w:sz w:val="16"/></w:rPr><w:tab/></w:r>`);
   }
 
-  // SALARY
-  const salAnchor = `<w:t>SALARY</w:t></w:r><w:r><w:rPr><w:spacing w:val="47"/><w:sz w:val="16"/></w:rPr><w:t xml:space="preserve"> </w:t></w:r>`;
-  if (xml.includes(salAnchor)) {
-    xml = xml.replace(salAnchor, `<w:t>SALARY</w:t></w:r><w:r><w:rPr><w:spacing w:val="47"/><w:sz w:val="16"/></w:rPr><w:t xml:space="preserve"> ${xe(leave.salary||"")} </w:t></w:r>`);
+  // SALARY — covers: label, spacing-47 space, single-underline tab
+  const salBlock = `<w:t>SALARY</w:t></w:r><w:r><w:rPr><w:spacing w:val="47"/><w:sz w:val="16"/></w:rPr><w:t xml:space="preserve"> </w:t></w:r><w:r><w:rPr><w:sz w:val="16"/><w:u w:val="single"/></w:rPr><w:tab/></w:r>`;
+  if (xml.includes(salBlock)) {
+    xml = xml.replace(salBlock, `<w:t xml:space="preserve">SALARY  </w:t></w:r><w:r><w:rPr><w:sz w:val="16"/><w:u w:val="single"/></w:rPr><w:t xml:space="preserve">${xe(leave.salary||"")}</w:t></w:r><w:r><w:rPr><w:sz w:val="16"/></w:rPr><w:tab/></w:r>`);
   }
 
-  // 6.C NUMBER OF WORKING DAYS — second occurrence of "FOR" (first is the title "APPLICATION FOR LEAVE")
-  // Replace the second occurrence by indexing
-  const forIdx1 = xml.indexOf(`<w:t>FOR</w:t></w:r>`);
+  // 6.C NUMBER OF WORKING DAYS APPLIED FOR — second occurrence of "FOR" (first is in title)
+  const forTarget = `<w:t>FOR</w:t></w:r>`;
+  const forIdx1 = xml.indexOf(forTarget);
   if (forIdx1 >= 0) {
-    const forIdx2 = xml.indexOf(`<w:t>FOR</w:t></w:r>`, forIdx1 + 1);
+    const forIdx2 = xml.indexOf(forTarget, forIdx1 + 1);
     if (forIdx2 >= 0) {
       const before = xml.slice(0, forIdx2);
-      const after = xml.slice(forIdx2 + `<w:t>FOR</w:t></w:r>`.length);
+      const after = xml.slice(forIdx2 + forTarget.length);
       xml = before + `<w:t xml:space="preserve">FOR  ${xe(String(leave.days||""))}</w:t></w:r>` + after;
     }
   }
 
-  // INCLUSIVE DATES — the only occurrence
+  // INCLUSIVE DATES (only one occurrence)
   xml = xml.replace(
     `<w:t>DATES</w:t></w:r>`,
     `<w:t xml:space="preserve">DATES  ${xe((leave.startDate&&leave.endDate)?(leave.startDate+" to "+leave.endDate):"")}</w:t></w:r>`
   );
 
-  // "As of " — note the trailing space
-  xml = xml.replace(
-    `<w:t>As of </w:t></w:r>`,
-    `<w:t xml:space="preserve">As of ${xe(leave.dateActioned||leave.dateFiled||"")}</w:t></w:r>`
-  );
+  // "As of " — followed by underline-tab. Replace label+tab area.
+  const asOfBlock = `<w:t xml:space="preserve">As of </w:t></w:r><w:r><w:rPr><w:rFonts w:ascii="Times New Roman"/><w:sz w:val="20"/><w:u w:val="thick"/></w:rPr><w:tab/></w:r>`;
+  if (xml.includes(asOfBlock)) {
+    xml = xml.replace(asOfBlock, `<w:t xml:space="preserve">As of </w:t></w:r><w:r><w:rPr><w:rFonts w:ascii="Times New Roman"/><w:sz w:val="20"/><w:u w:val="single"/></w:rPr><w:t xml:space="preserve">${xe(leave.dateActioned||leave.dateFiled||"")}</w:t></w:r>`);
+  }
 
   // ─── 8. Credit table: 6 empty cells in order ───
   // The pattern is: <w:tcW w:w="1580|1579" .../></w:tcPr><w:p ...><w:pPr>...empty pPr...</w:pPr></w:p></w:tc>
@@ -453,7 +452,7 @@ async function buildCS6Docx_v2(leave, withSig) {
 
   // ─── 9. 7.C "days with pay" — only fill if approved ───
   if (leave.status === "approved" || leave.status === "completed") {
-    xml = xml.replace(/<w:t>days with <\/w:t>/, `<w:t xml:space="preserve">${xe(String(leave.days))} days with </w:t>`);
+    xml = xml.replace(`<w:t xml:space="preserve">days with </w:t>`, `<w:t xml:space="preserve">${xe(String(leave.days))} days with </w:t>`);
   }
 
   zip.file("word/document.xml", xml);
