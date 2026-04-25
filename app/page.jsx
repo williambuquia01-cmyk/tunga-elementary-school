@@ -315,6 +315,38 @@ function LoginPage({onLogin}){
 }
 
 /* ═══════════════ MAIN APP ═══════════════ */
+// CS Form 6 DOCX template (uploaded to Cloudinary admin storage)
+const CS6_TEMPLATE_URL = "https://res.cloudinary.com/dsbu9k6yp/raw/upload/v1777099989/tunga-es/2026/file_gowj0f";
+const JSZIP_CDN = "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js";
+
+// Load JSZip from CDN once, cache the promise
+let _jszipPromise = null;
+const loadJSZip = () => {
+  if (typeof window === "undefined") return Promise.reject(new Error("SSR"));
+  if (window.JSZip) return Promise.resolve(window.JSZip);
+  if (_jszipPromise) return _jszipPromise;
+  _jszipPromise = new Promise((resolve, reject) => {
+    const s = document.createElement("script");
+    s.src = JSZIP_CDN;
+    s.onload = () => window.JSZip ? resolve(window.JSZip) : reject(new Error("JSZip load failed"));
+    s.onerror = () => reject(new Error("JSZip script failed to load"));
+    document.head.appendChild(s);
+  });
+  return _jszipPromise;
+};
+
+// Phase 1: Fetch template, repack with JSZip, return Blob.
+// No data injection yet — just proves the round-trip works.
+async function buildCS6Docx_v1(leave, withSig) {
+  const JSZip = await loadJSZip();
+  const resp = await fetch(CS6_TEMPLATE_URL);
+  if (!resp.ok) throw new Error("Template fetch failed: HTTP " + resp.status);
+  const buf = await resp.arrayBuffer();
+  const zip = await JSZip.loadAsync(buf);
+  // Phase 1: just repack as-is, no modifications
+  return await zip.generateAsync({ type: "blob", mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
+}
+
 export default function App(){
   const[auth,setAuth]=useState(null);
   const[authChecked,setAuthChecked]=useState(false);
@@ -1675,7 +1707,17 @@ ${l.reason?`<div style="margin-top:2pt;font-size:8pt;font-style:italic;">${l.rea
               <Btn sm color="#0b2a52" onClick={()=>printCS6(l,true)}>{IC.download} PDF (with sig)</Btn>
               <Btn sm color="#0b2a52" outline onClick={()=>printCS6(l,false)}>PDF (blank sig)</Btn>
               <Btn sm color="#1f6b4e" onClick={()=>downloadCS6Docx(l,true)}>{IC.download} DOCX (with sig)</Btn>
-              <Btn sm color="#1f6b4e" outline onClick={()=>downloadCS6Docx(l,false)}>DOCX (blank sig)</Btn></>}
+              <Btn sm color="#1f6b4e" outline onClick={()=>downloadCS6Docx(l,false)}>DOCX (blank sig)</Btn>
+              <Btn sm color="#a8640a" outline onClick={async()=>{
+                try{
+                  const blob=await buildCS6Docx_v1(l,true);
+                  const url=URL.createObjectURL(blob);
+                  const a=document.createElement("a");a.href=url;a.download=`CS-Form-6_NEW_${l.requester.replace(/[^a-zA-Z0-9]/g,"_")}_${l.dateFiled}.docx`;
+                  document.body.appendChild(a);a.click();document.body.removeChild(a);
+                  setTimeout(()=>URL.revokeObjectURL(url),1000);
+                  alert("Phase 1 OK: template downloaded successfully. Open it in Word to verify it looks identical to the original blank form.");
+                }catch(e){alert("Phase 1 failed: "+e.message);console.error(e);}
+              }}>🧪 NEW DOCX (test)</Btn></>}
             {(isAdmin||(l.status==="pending"&&l.username===auth.username))&&<button onClick={()=>deleteLeave(l.id)} style={{background:"none",border:"none",cursor:"pointer",color:"var(--ink-faint)"}}>{IC.trash}</button>}</div></div></div>)}</>);};
 
   /* ═══ RENDER ═══ */
