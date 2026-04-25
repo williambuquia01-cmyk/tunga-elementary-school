@@ -1023,10 +1023,7 @@ body{font-family:'Bookman Old Style','Times New Roman',Georgia,serif;font-size:1
           <div><span style={{color:"#999"}}>Subject:</span> <strong>{r.subject||"—"}</strong></div>
         </div>
         {r.notes&&<div style={{marginTop:6,fontSize:12,color:"#555",background:"#f9f9fb",borderRadius:6,padding:8}}>{r.notes}</div>}
-        {r.feedback&&<div style={{marginTop:6,fontSize:12,color:"#1B4D7E",background:"#e8f0fe",borderRadius:6,padding:8}}><strong>Feedback:</strong> {r.feedback}</div>}
-        <Modal open={modal===`coFB_${r.id}`} onClose={()=>setModal(null)} title="Complete CO — Add Feedback">
-          <Inp label="Observer Feedback / Rating" value={f.coFeedback||""} onChange={v=>ff("coFeedback",v)} ta ph="Observation notes, rating, areas for improvement..."/>
-          <Btn onClick={()=>updateStatus(r.id,"completed",f.coFeedback)} full color="#1B4D7E">Mark Completed</Btn></Modal></div>)}
+        {r.feedback&&<div style={{marginTop:6,fontSize:12,color:"#1B4D7E",background:"#e8f0fe",borderRadius:6,padding:8}}><strong>Feedback:</strong> {r.feedback}</div>}</div>)}
 
       <Modal open={modal==="addCO"} onClose={()=>setModal(null)} title="Request Classroom Observation">
         <Inp label="Preferred Date" value={f.coDate||""} onChange={v=>ff("coDate",v)} type="date"/>
@@ -1668,18 +1665,7 @@ ${l.reason?`<div style="margin-top:2pt;font-size:8pt;font-style:italic;">${l.rea
               <Btn sm color="#0b2a52" outline onClick={()=>printCS6(l,false)}>PDF (blank sig)</Btn>
               <Btn sm color="#1f6b4e" onClick={()=>downloadCS6Docx(l,true)}>{IC.download} DOCX (with sig)</Btn>
               <Btn sm color="#1f6b4e" outline onClick={()=>downloadCS6Docx(l,false)}>DOCX (blank sig)</Btn></>}
-            {(isAdmin||(l.status==="pending"&&l.username===auth.username))&&<button onClick={()=>deleteLeave(l.id)} style={{background:"none",border:"none",cursor:"pointer",color:"var(--ink-faint)"}}>{IC.trash}</button>}</div></div>
-        <Modal open={modal===`lvA_${l.id}`} onClose={()=>setModal(null)} title="Approve Leave Request">
-          <Inp label="Remarks (optional)" value={f.lvRemarks||""} onChange={v=>ff("lvRemarks",v)} ta ph="e.g. Approved subject to submission of medical certificate..."/>
-          <div style={{marginBottom:12,padding:"10px 12px",background:"var(--brand-1-soft)",borderRadius:8}}>
-            <label style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",fontSize:13,fontWeight:500,color:"var(--brand-1)"}}>
-              <input type="checkbox" checked={f.lvSig!=="no"} onChange={e=>ff("lvSig",e.target.checked?"yes":"no")}/>
-              Include my e-signature on the approved CS Form 6</label>
-            <div style={{fontSize:11,color:"var(--ink-muted)",marginTop:3,paddingLeft:22}}>If unchecked, a blank signature line will be printed for wet signature.</div></div>
-          <Btn onClick={()=>{setLeaves(prev=>prev.map(x=>x.id===l.id?{...x,status:"approved",remarks:f.lvRemarks||"",signedWithESig:f.lvSig!=="no",dateActioned:now(),actionedBy:auth.name}:x));setModal(null);}} full color="#1f6b4e">Approve Leave</Btn></Modal>
-        <Modal open={modal===`lvD_${l.id}`} onClose={()=>setModal(null)} title="Decline Leave Request">
-          <Inp label="Reason for declining" value={f.lvRemarks||""} onChange={v=>ff("lvRemarks",v)} ta ph="Please provide a reason..."/>
-          <Btn onClick={()=>{setLeaves(prev=>prev.map(x=>x.id===l.id?{...x,status:"declined",remarks:f.lvRemarks||"",signedWithESig:true,dateActioned:now(),actionedBy:auth.name}:x));setModal(null);}} full color="#a2321a">Decline Leave</Btn></Modal></div>)}</>);};
+            {(isAdmin||(l.status==="pending"&&l.username===auth.username))&&<button onClick={()=>deleteLeave(l.id)} style={{background:"none",border:"none",cursor:"pointer",color:"var(--ink-faint)"}}>{IC.trash}</button>}</div></div></div>)}</>);};
 
   /* ═══ RENDER ═══ */
   const pages={home:<HomePage/>,students:<StudentsPage/>,grades:<GradesPage/>,personnel:<PersonnelPage/>,coordinators:<CoordsPage/>,
@@ -1753,6 +1739,31 @@ ${l.reason?`<div style="margin-top:2pt;font-size:8pt;font-style:italic;">${l.rea
         <Modal open={true} onClose={()=>setModal(null)} title={`Upload to ${subCode}`}>
           <Inp label="Attributed to" value={f.ppt||""} onChange={v=>ff("ppt",v)} ph="Principal / Teacher name"/>
           <FileUploader onUpload={(file)=>{const k=`${did}-${sCode}`;setPpsMovSubs(prev=>({...prev,[k]:(prev[k]||[]).map(s=>s.code===subCode?{...s,files:[...s.files,{...file,id:uid(),teacher:f.ppt||"Principal"}]}:s)}));fr();setModal(null);}} accept=".pdf,.docx,.xlsx,.jpg,.jpeg,.png,.pptx"/></Modal>);})()}
+      {/* ═══ HOISTED CO FEEDBACK MODAL (fix typing lag in textarea) ═══ */}
+      {modal&&modal.startsWith("coFB_")&&(()=>{const rid=modal.slice(5);const r=coRequests.find(x=>x.id===rid);if(!r)return null;return(
+        <Modal open={true} onClose={()=>setModal(null)} title="Complete CO — Add Feedback">
+          <div style={{background:"#fef9e7",borderRadius:8,padding:10,marginBottom:12,fontSize:12,color:"#7D6608"}}>
+            <strong>Completing:</strong> {r.requester} — {r.section} ({r.date})</div>
+          <Inp label="Observer Feedback / Rating" value={f.coFeedback||""} onChange={v=>ff("coFeedback",v)} ta ph="Observation notes, rating, areas for improvement..."/>
+          <Btn onClick={()=>{setCoRequests(prev=>prev.map(x=>x.id===rid?{...x,status:"completed",feedback:f.coFeedback||x.feedback,dateActioned:now()}:x));fr();setModal(null);}} full color="#1B4D7E">Mark Completed</Btn></Modal>);})()}
+      {/* ═══ HOISTED LEAVE APPROVE/DECLINE MODALS (fix typing lag in textarea) ═══ */}
+      {modal&&modal.startsWith("lvA_")&&(()=>{const lid=modal.slice(4);const lv=leaves.find(x=>x.id===lid);if(!lv)return null;return(
+        <Modal open={true} onClose={()=>setModal(null)} title="Approve Leave Request">
+          <div style={{background:"var(--brand-1-soft)",borderRadius:8,padding:10,marginBottom:12,fontSize:12,color:"var(--brand-1)"}}>
+            <strong>Approving:</strong> {lv.requester} — {lv.type} ({lv.days} day{lv.days>1?"s":""})</div>
+          <Inp label="Remarks (optional)" value={f.lvRemarks||""} onChange={v=>ff("lvRemarks",v)} ta ph="e.g. Approved subject to submission of medical certificate..."/>
+          <div style={{marginBottom:12,padding:"10px 12px",background:"var(--brand-1-soft)",borderRadius:8}}>
+            <label style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",fontSize:13,fontWeight:500,color:"var(--brand-1)"}}>
+              <input type="checkbox" checked={f.lvSig!=="no"} onChange={e=>ff("lvSig",e.target.checked?"yes":"no")}/>
+              Include my e-signature on the approved CS Form 6</label>
+            <div style={{fontSize:11,color:"var(--ink-muted)",marginTop:3,paddingLeft:22}}>If unchecked, a blank signature line will be printed for wet signature.</div></div>
+          <Btn onClick={()=>{setLeaves(prev=>prev.map(x=>x.id===lid?{...x,status:"approved",remarks:f.lvRemarks||"",signedWithESig:f.lvSig!=="no",dateActioned:now(),actionedBy:auth.name}:x));fr();setModal(null);}} full color="#1f6b4e">Approve Leave</Btn></Modal>);})()}
+      {modal&&modal.startsWith("lvD_")&&(()=>{const lid=modal.slice(4);const lv=leaves.find(x=>x.id===lid);if(!lv)return null;return(
+        <Modal open={true} onClose={()=>setModal(null)} title="Decline Leave Request">
+          <div style={{background:"#f7e2db",borderRadius:8,padding:10,marginBottom:12,fontSize:12,color:"#a2321a"}}>
+            <strong>Declining:</strong> {lv.requester} — {lv.type} ({lv.days} day{lv.days>1?"s":""})</div>
+          <Inp label="Reason for declining" value={f.lvRemarks||""} onChange={v=>ff("lvRemarks",v)} ta ph="Please provide a reason..."/>
+          <Btn onClick={()=>{setLeaves(prev=>prev.map(x=>x.id===lid?{...x,status:"declined",remarks:f.lvRemarks||"",signedWithESig:true,dateActioned:now(),actionedBy:auth.name}:x));fr();setModal(null);}} full color="#a2321a">Decline Leave</Btn></Modal>);})()}
       {/* ═══ HOISTED LEAVE MODAL (fixes typing lag in CS Form 6 filing) ═══ */}
       {modal==="addLeave"&&(()=>{const myC=getMyCredits();const daysReq=daysBetween(f.lvStart,f.lvEnd);const selectedLT=LEAVE_TYPES.find(lt=>lt.v===f.lvType);const poolBal=selectedLT?.pool?(myC[selectedLT.pool]||0):null;const isSick=f.lvType==="Sick Leave";const isWellness=f.lvType==="Wellness Leave";const isOthers=f.lvType==="Others (Specify)";const myAvail=leaveTypesForRole(auth.role);return(
         <Modal open={true} onClose={()=>setModal(null)} title="File Leave Application — CS Form 6" wide>
