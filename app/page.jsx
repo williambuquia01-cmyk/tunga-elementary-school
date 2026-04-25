@@ -428,7 +428,9 @@ async function buildCS6Docx_v2(leave, withSig) {
   // ─── 8. Credit table: 6 empty cells in order ───
   // The pattern is: <w:tcW w:w="1580|1579" .../></w:tcPr><w:p ...><w:pPr>...empty pPr...</w:pPr></w:p></w:tc>
   // They appear 6 times in order: VL Total, SL Total, VL Less, SL Less, VL Balance, SL Balance
-  const myUserCredits = leave.snapshotCredits || (typeof window !== "undefined" && window.__tesCurrentCredits) || {};
+  const _snap = leave.snapshotCredits || {};
+  const _hasSnap = Object.keys(_snap).length > 0 && (_snap.vacationLeave || _snap.sickLeave);
+  const myUserCredits = _hasSnap ? _snap : (typeof window !== "undefined" && window.__tesCurrentCredits) || _snap;
   const vlTotal = myUserCredits.vacationLeave || 0;
   const slTotal = myUserCredits.sickLeave || 0;
   const vlLess = leave.type === "Vacation Leave" ? leave.days : 0;
@@ -450,12 +452,103 @@ async function buildCS6Docx_v2(leave, withSig) {
     creditIdx++;
   }
 
-  // ─── PHASE 3: Mark the selected leave type with ☑ inline next to its label ───
-  // We can't easily check the existing VML checkbox graphic, so instead we
-  // prepend a bold ☑ character right before the leave-type text. This is
-  // visually unmistakable and works in any Word version.
-  const checkRunPrefix = `<w:r><w:rPr><w:rFonts w:ascii="Arial Unicode MS" w:hAnsi="Arial Unicode MS"/><w:b/><w:sz w:val="20"/><w:color w:val="000000"/></w:rPr><w:t xml:space="preserve">☑ </w:t></w:r>`;
-  
+  // ─── PHASE 3: Mark the selected leave type's checkbox ───
+  // TWO-PRONGED approach (belt-and-suspenders):
+  // (A) Edit the VML <v:shape> path attribute to add diagonal ✓ strokes inside the actual box
+  // (B) Strip the EMF (o:gfxdata) fallback to force Word to use the VML path
+  // (C) Also add a small inline ☑ before the label as a textual backup, in case Word still uses EMF
+
+  // Map leave type → box index (0–12, top to bottom in the form)
+  const leaveTypeToBoxIdx = {
+    "Vacation Leave": 0,
+    "Mandatory/Forced Leave": 1,
+    "Sick Leave": 2,
+    "Maternity Leave": 3,
+    "Paternity Leave": 4,
+    "Special Privilege Leave": 5,
+    "Solo Parent Leave": 6,
+    "Study Leave": 7,
+    "10-Day VAWC Leave": 8,
+    "Rehabilitation Privilege": 9,
+    "Special Leave Benefits for Women": 10,
+    "Special Emergency (Calamity) Leave": 11,
+    "Adoption Leave": 12,
+  };
+
+  // Each box's vertical bounds (in EMU, from the original VML path data)
+  const boxBounds = [
+    [0, 154939],         // 0 Vacation
+    [187325, 342900],    // 1 Mandatory/Forced
+    [374650, 530225],    // 2 Sick
+    [561975, 717550],    // 3 Maternity
+    [749300, 904874],    // 4 Paternity
+    [937259, 1092199],   // 5 Special Privilege
+    [1124584, 1280159],  // 6 Solo Parent
+    [1311909, 1467484],  // 7 Study
+    [1499869, 1654809],  // 8 VAWC
+    [1687194, 1842769],  // 9 Rehab
+    [1874519, 2030094],  // 10 SLBW
+    [2061844, 2217419],  // 11 Calamity
+    [2249169, 2412365],  // 12 Adoption
+  ];
+
+  // Build VML check stroke for a given box index — diagonal ✓ inside the box
+  const buildCheckStroke = (boxIdx) => {
+    const bounds = boxBounds[boxIdx];
+    if (!bounds) return "";
+    const [y0, y1] = bounds;
+    const h = y1 - y0;
+    const xLeft = 25000;
+    const xMid = 65000;
+    const xRight = 140000;
+    const yMid = y0 + Math.round(h * 0.5);
+    const yLow = y1 - 20000;
+    const yHigh = y0 + 25000;
+    // Two strokes: down-right then up-right, forming a checkmark
+    return `m${xLeft},${yMid}l${xMid},${yLow}em${xMid},${yLow}l${xRight},${yHigh}e`;
+  };
+
+  // Identify which box (if any) to check
+  const matchType = (l) => {
+    const t = l.type || "";
+    if (t.startsWith("Others:")) return null;
+    if (leaveTypeToBoxIdx[t] !== undefined) return t;
+    for (const k of Object.keys(leaveTypeToBoxIdx)) {
+      if (t.includes(k) || k.includes(t)) return k;
+    }
+    return null;
+  };
+  const matchedType = matchType(leave);
+  const boxIdx = matchedType !== null ? leaveTypeToBoxIdx[matchedType] : null;
+
+  // (A) + (B): Edit the VML path + strip EMF fallback
+  if (boxIdx !== null && boxIdx !== undefined) {
+    // The big checkbox group is around offset 76714 in the original template.
+    // Find the v:shape with the path attribute inside the first <w:pict> that contains "Group 7"
+    // (or just look for the path with the unique signature "m,l,154939")
+    const pathSignature = `m,l,154939`;
+    const shapeMatch = xml.match(/<v:shape[^>]*\spath="([^"]*m,l,154939[^"]*)"[^>]*>/);
+    if (shapeMatch) {
+      const origPath = shapeMatch[1];
+      const checkStroke = buildCheckStroke(boxIdx);
+      const newPath = origPath + checkStroke;
+      // Replace the path attribute
+      const newShape = shapeMatch[0].replace(`path="${origPath}"`, `path="${newPath}"`);
+      xml = xml.replace(shapeMatch[0], newShape);
+      // Also strip the EMF fallback inside that group + shape
+      // (we only strip in the area near our target to avoid side-effects)
+      const groupStart = xml.indexOf(`<v:group`, xml.indexOf(`Group 7`) - 50);
+      if (groupStart > 0) {
+        const groupEnd = xml.indexOf(`</v:group>`, groupStart) + 10;
+        let groupBlock = xml.slice(groupStart, groupEnd);
+        groupBlock = groupBlock.replace(/\so:gfxdata="[^"]*"/g, "");
+        xml = xml.slice(0, groupStart) + groupBlock + xml.slice(groupEnd);
+      }
+    }
+  }
+
+  // (C) Always also add a small inline ☑ marker before the label — backup in case VML doesn't render
+  const checkRunPrefix = `<w:r><w:rPr><w:rFonts w:ascii="Arial Unicode MS" w:hAnsi="Arial Unicode MS"/><w:b/><w:sz w:val="20"/></w:rPr><w:t xml:space="preserve">☑ </w:t></w:r>`;
   const checkboxAnchors = {
     "Vacation Leave":                       `<w:t xml:space="preserve">Vacation Leave </w:t>`,
     "Mandatory/Forced Leave":               `<w:t xml:space="preserve">Mandatory/Forced </w:t>`,
@@ -471,40 +564,20 @@ async function buildCS6Docx_v2(leave, withSig) {
     "Special Emergency (Calamity) Leave":   `<w:t xml:space="preserve">Special Emergency (Calamity) Leave </w:t>`,
     "Adoption Leave":                       `<w:t xml:space="preserve">Adoption </w:t>`,
   };
-  
-  // The leave's type may be the official type, "Others: <free text>", or a synonym.
-  // Match logic: find which official label this leave applies to.
-  const matchType = (l) => {
-    const t = l.type || "";
-    if (t.startsWith("Others:")) return null; // No checkbox match → goes in Others row
-    // Exact matches first
-    if (checkboxAnchors[t]) return t;
-    // Fuzzy: match by includes
-    for (const k of Object.keys(checkboxAnchors)) {
-      if (t.includes(k) || k.includes(t)) return k;
-    }
-    return null;
-  };
-  
-  const matchedType = matchType(leave);
   if (matchedType && checkboxAnchors[matchedType]) {
     const anchor = checkboxAnchors[matchedType];
-    // Replace ONLY THE FIRST occurrence — ensures we don't accidentally hit "Vacation" elsewhere
     const firstIdx = xml.indexOf(anchor);
     if (firstIdx >= 0) {
-      // Find the start of the run containing this <w:t>
-      const runStart = xml.lastIndexOf("<w:r>", firstIdx) >= 0 
-        ? xml.lastIndexOf("<w:r>", firstIdx) 
+      const runStart = xml.lastIndexOf("<w:r>", firstIdx) >= 0
+        ? xml.lastIndexOf("<w:r>", firstIdx)
         : xml.lastIndexOf("<w:r ", firstIdx);
       if (runStart >= 0) {
-        // Insert our check-run BEFORE the existing run
         xml = xml.slice(0, runStart) + checkRunPrefix + xml.slice(runStart);
       }
     }
   }
-  
-  // Always inject "Others" text if leave type starts with "Others:" or is one of the special types
-  // that has no explicit checkbox (Wellness, Mental Health, Service Credits, CTO)
+
+  // "Others" types text injection (Wellness, Mental Health, Service Credits, CTO, "Others: <text>")
   const othersTypes = ["Wellness Leave", "Mental Health Leave", "Service Credits", "CTO"];
   let othersText = "";
   if (leave.type?.startsWith("Others:")) {
@@ -513,7 +586,6 @@ async function buildCS6Docx_v2(leave, withSig) {
     othersText = leave.type;
   }
   if (othersText) {
-    // Inject after "Others:" anchor
     xml = xml.replace(
       `<w:t>Others:</w:t>`,
       `<w:t xml:space="preserve">Others: </w:t></w:r>${checkRunPrefix}<w:r><w:rPr><w:rFonts w:ascii="Arial"/><w:b/><w:sz w:val="16"/></w:rPr><w:t xml:space="preserve">${xe(othersText)}</w:t>`
