@@ -535,20 +535,17 @@ async function buildCS6Docx_v2(leave, withSig) {
       // Replace the path attribute
       const newShape = shapeMatch[0].replace(`path="${origPath}"`, `path="${newPath}"`);
       xml = xml.replace(shapeMatch[0], newShape);
-      // Also strip the EMF fallback inside that group + shape
-      // (we only strip in the area near our target to avoid side-effects)
-      const groupStart = xml.indexOf(`<v:group`, xml.indexOf(`Group 7`) - 50);
-      if (groupStart > 0) {
-        const groupEnd = xml.indexOf(`</v:group>`, groupStart) + 10;
-        let groupBlock = xml.slice(groupStart, groupEnd);
-        groupBlock = groupBlock.replace(/\so:gfxdata="[^"]*"/g, "");
-        xml = xml.slice(0, groupStart) + groupBlock + xml.slice(groupEnd);
-      }
+      // Also strip the EMF fallback (o:gfxdata) AGGRESSIVELY across entire doc
+      // to force Word to use the modified VML path. This is the only way to ensure
+      // our checkmark renders.
+      xml = xml.replace(/\so:gfxdata="[^"]*"/g, "");
     }
   }
 
-  // (C) Always also add a small inline ☑ marker before the label — backup in case VML doesn't render
-  const checkRunPrefix = `<w:r><w:rPr><w:rFonts w:ascii="Arial Unicode MS" w:hAnsi="Arial Unicode MS"/><w:b/><w:sz w:val="20"/></w:rPr><w:t xml:space="preserve">☑ </w:t></w:r>`;
+  // (C) Always also add a CLEARLY VISIBLE inline ✓ marker before the label.
+  // Even if the VML edit works in Word, having this textual marker makes 100% sure 
+  // any reader knows which leave type was selected.
+  const checkRunPrefix = `<w:r><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:b/><w:sz w:val="22"/></w:rPr><w:t xml:space="preserve">✓ </w:t></w:r>`;
   const checkboxAnchors = {
     "Vacation Leave":                       `<w:t xml:space="preserve">Vacation Leave </w:t>`,
     "Mandatory/Forced Leave":               `<w:t xml:space="preserve">Mandatory/Forced </w:t>`,
@@ -1975,13 +1972,17 @@ ${l.reason?`<div style="margin-top:2pt;font-size:8pt;font-style:italic;">${l.rea
               <Btn sm color="#1f6b4e" outline onClick={()=>downloadCS6Docx(l,false)}>DOCX (blank sig)</Btn>
               <Btn sm color="#a8640a" outline onClick={async()=>{
                 try{
-                  const blob=await buildCS6Docx_v2(l,true);
+                  // If snapshotCredits is empty but the user has live credits, use them
+                  const u=users.find(x=>x.username===l.username);
+                  const liveCredits=u?.credits||{};
+                  const hasLive=liveCredits.vacationLeave||liveCredits.sickLeave;
+                  const lWithCredits=(l.snapshotCredits&&(l.snapshotCredits.vacationLeave||l.snapshotCredits.sickLeave))?l:{...l,snapshotCredits:hasLive?liveCredits:l.snapshotCredits||{}};
+                  const blob=await buildCS6Docx_v2(lWithCredits,true);
                   const url=URL.createObjectURL(blob);
                   const a=document.createElement("a");a.href=url;a.download=`CS-Form-6_NEW_${l.requester.replace(/[^a-zA-Z0-9]/g,"_")}_${l.dateFiled}.docx`;
                   document.body.appendChild(a);a.click();document.body.removeChild(a);
                   setTimeout(()=>URL.revokeObjectURL(url),1000);
-                  alert("Phase 2a: name-injected DOCX downloaded. Open in Word and check the NAME row.");
-                }catch(e){alert("Phase 2a failed: "+e.message);console.error(e);}
+                }catch(e){alert("DOCX generation failed: "+e.message);console.error(e);}
               }}>🧪 NEW DOCX (test)</Btn></>}
             {(isAdmin||(l.status==="pending"&&l.username===auth.username))&&<button onClick={()=>deleteLeave(l.id)} style={{background:"none",border:"none",cursor:"pointer",color:"var(--ink-faint)"}}>{IC.trash}</button>}</div></div></div>)}</>);};
 
