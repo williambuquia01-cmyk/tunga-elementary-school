@@ -335,9 +335,13 @@ const loadJSZip = () => {
   return _jszipPromise;
 };
 
-// Phase 2a: Fetch template, inject NAME (Last/First/Middle) only.
-// Strategy: replace the label text "(Last)" with "ACTUAL_NAME (Last)" inside word/document.xml.
-// Same for (First) and (Middle). All other fields remain blank for now.
+// Phase 2b: full text injection for simple fields.
+// Injects: Name (Last/First/Middle), Date of Filing, Position, Salary,
+//          Number of Working Days, Inclusive Dates, Date Actioned, 
+//          Vacation/Sick credit table (6 cells: Total Earned, Less, Balance × VL, SL),
+//          Days With Pay (in 7.C),
+//          Other reason text, Whereabouts, Illness.
+// Does NOT yet handle checkboxes (Phase 3) or signatures (Phase 4).
 async function buildCS6Docx_v2(leave, withSig) {
   const JSZip = await loadJSZip();
   const resp = await fetch(CS6_TEMPLATE_URL);
@@ -345,7 +349,6 @@ async function buildCS6Docx_v2(leave, withSig) {
   const buf = await resp.arrayBuffer();
   const zip = await JSZip.loadAsync(buf);
 
-  // Parse the requester name into Last / First / Middle
   const parseName = (full) => {
     const s = (full || "").trim();
     if (!s) return { last: "", first: "", middle: "" };
@@ -361,21 +364,97 @@ async function buildCS6Docx_v2(leave, withSig) {
   };
   const { last, first, middle } = parseName(leave.requester);
 
-  // Escape for XML
   const xe = (s) => String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
-  // Read document.xml as text, modify, write back
+  // Helper: build a simple inline text run with given size
+  const run = (txt, sz) => `<w:r><w:rPr><w:sz w:val="${sz||16}"/></w:rPr><w:t xml:space="preserve">${xe(txt)}</w:t></w:r>`;
+
   const docXml = zip.file("word/document.xml");
   if (!docXml) throw new Error("document.xml not found in template");
   let xml = await docXml.async("string");
 
-  // Phase 2a: simple text injection — prepend value to the label
-  // Original: <w:t>(Last)</w:t>  →  <w:t xml:space="preserve">DELA CRUZ </w:t>...<w:t>(Last)</w:t>
-  // To keep structural simplicity, we replace the label text inline with name + label
-  // The labels appear ONLY ONCE each, so this is safe.
+  // ─── 1. Name fields (proven in Phase 2a) ───
   if (last)   xml = xml.replace(/<w:t>\(Last\)<\/w:t>/, `<w:t xml:space="preserve">${xe(last)}  </w:t></w:r><w:r><w:rPr><w:sz w:val="14"/></w:rPr><w:t>(Last)</w:t>`);
   if (first)  xml = xml.replace(/<w:t>\(First\)<\/w:t>/, `<w:t xml:space="preserve">${xe(first)}  </w:t></w:r><w:r><w:rPr><w:sz w:val="14"/></w:rPr><w:t>(First)</w:t>`);
   if (middle) xml = xml.replace(/<w:t>\(Middle\)<\/w:t>/, `<w:t xml:space="preserve">${xe(middle)}  </w:t></w:r><w:r><w:rPr><w:sz w:val="14"/></w:rPr><w:t>(Middle)</w:t>`);
+
+  // ─── 2-7. SIMPLE TEXT FIELDS ───
+  // For each label in row 3 (DATE OF FILING, POSITION, SALARY), we replace the spacing-run
+  // that comes RIGHT AFTER the label closes — that's where the value should appear.
+  // Original: <w:t>DATE OF FILING</w:t></w:r><w:r ...spacing 46...><w:t> </w:t></w:r>
+  //                                                                  ^^^^ replace this run
+
+  // DATE OF FILING — anchor uniquely identifies the spacing-run after the label
+  const dateAnchor = `<w:t>DATE OF FILING</w:t></w:r><w:r><w:rPr><w:spacing w:val="46"/><w:position w:val="2"/><w:sz w:val="16"/></w:rPr><w:t xml:space="preserve"> </w:t></w:r>`;
+  if (xml.includes(dateAnchor)) {
+    xml = xml.replace(dateAnchor, `<w:t>DATE OF FILING</w:t></w:r><w:r><w:rPr><w:spacing w:val="46"/><w:position w:val="2"/><w:sz w:val="16"/></w:rPr><w:t xml:space="preserve"> ${xe(leave.dateFiled||"")} </w:t></w:r>`);
+  }
+
+  // POSITION
+  const posAnchor = `<w:t>POSITION</w:t></w:r><w:r><w:rPr><w:spacing w:val="43"/><w:sz w:val="16"/></w:rPr><w:t xml:space="preserve"> </w:t></w:r>`;
+  if (xml.includes(posAnchor)) {
+    xml = xml.replace(posAnchor, `<w:t>POSITION</w:t></w:r><w:r><w:rPr><w:spacing w:val="43"/><w:sz w:val="16"/></w:rPr><w:t xml:space="preserve"> ${xe(leave.position||"")} </w:t></w:r>`);
+  }
+
+  // SALARY
+  const salAnchor = `<w:t>SALARY</w:t></w:r><w:r><w:rPr><w:spacing w:val="47"/><w:sz w:val="16"/></w:rPr><w:t xml:space="preserve"> </w:t></w:r>`;
+  if (xml.includes(salAnchor)) {
+    xml = xml.replace(salAnchor, `<w:t>SALARY</w:t></w:r><w:r><w:rPr><w:spacing w:val="47"/><w:sz w:val="16"/></w:rPr><w:t xml:space="preserve"> ${xe(leave.salary||"")} </w:t></w:r>`);
+  }
+
+  // 6.C NUMBER OF WORKING DAYS — second occurrence of "FOR" (first is the title "APPLICATION FOR LEAVE")
+  // Replace the second occurrence by indexing
+  const forIdx1 = xml.indexOf(`<w:t>FOR</w:t></w:r>`);
+  if (forIdx1 >= 0) {
+    const forIdx2 = xml.indexOf(`<w:t>FOR</w:t></w:r>`, forIdx1 + 1);
+    if (forIdx2 >= 0) {
+      const before = xml.slice(0, forIdx2);
+      const after = xml.slice(forIdx2 + `<w:t>FOR</w:t></w:r>`.length);
+      xml = before + `<w:t xml:space="preserve">FOR  ${xe(String(leave.days||""))}</w:t></w:r>` + after;
+    }
+  }
+
+  // INCLUSIVE DATES — the only occurrence
+  xml = xml.replace(
+    `<w:t>DATES</w:t></w:r>`,
+    `<w:t xml:space="preserve">DATES  ${xe((leave.startDate&&leave.endDate)?(leave.startDate+" to "+leave.endDate):"")}</w:t></w:r>`
+  );
+
+  // "As of " — note the trailing space
+  xml = xml.replace(
+    `<w:t>As of </w:t></w:r>`,
+    `<w:t xml:space="preserve">As of ${xe(leave.dateActioned||leave.dateFiled||"")}</w:t></w:r>`
+  );
+
+  // ─── 8. Credit table: 6 empty cells in order ───
+  // The pattern is: <w:tcW w:w="1580|1579" .../></w:tcPr><w:p ...><w:pPr>...empty pPr...</w:pPr></w:p></w:tc>
+  // They appear 6 times in order: VL Total, SL Total, VL Less, SL Less, VL Balance, SL Balance
+  const myUserCredits = leave.snapshotCredits || (typeof window !== "undefined" && window.__tesCurrentCredits) || {};
+  const vlTotal = myUserCredits.vacationLeave || 0;
+  const slTotal = myUserCredits.sickLeave || 0;
+  const vlLess = leave.type === "Vacation Leave" ? leave.days : 0;
+  const slLess = leave.type === "Sick Leave" ? leave.days : 0;
+  const vlBal = vlTotal - vlLess;
+  const slBal = slTotal - slLess;
+  const creditValues = [String(vlTotal), String(slTotal), String(vlLess), String(slLess), String(vlBal), String(slBal)];
+
+  // Match the empty-cell pattern and replace one at a time with values
+  let creditIdx = 0;
+  const emptyCellRegex = /<w:tcW w:w="(?:1579|1580)" w:type="dxa"\/><\/w:tcPr><w:p w:rsidR="005002FD" w:rsidRDefault="005002FD"><w:pPr><w:pStyle w:val="TableParagraph"\/><w:rPr><w:rFonts w:ascii="Times New Roman"\/><w:sz w:val="12"\/><\/w:rPr><\/w:pPr><\/w:p><\/w:tc>/;
+  while (creditIdx < 6) {
+    const m = xml.match(emptyCellRegex);
+    if (!m) break;
+    const widthAttr = m[0].match(/w:w="(\d+)"/)[1];
+    const val = creditValues[creditIdx];
+    const replacement = `<w:tcW w:w="${widthAttr}" w:type="dxa"/></w:tcPr><w:p w:rsidR="005002FD" w:rsidRDefault="005002FD"><w:pPr><w:pStyle w:val="TableParagraph"/><w:jc w:val="center"/><w:rPr><w:rFonts w:ascii="Times New Roman"/><w:sz w:val="16"/></w:rPr></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Times New Roman"/><w:sz w:val="16"/></w:rPr><w:t>${xe(val)}</w:t></w:r></w:p></w:tc>`;
+    xml = xml.replace(emptyCellRegex, replacement);
+    creditIdx++;
+  }
+
+  // ─── 9. 7.C "days with pay" — only fill if approved ───
+  if (leave.status === "approved" || leave.status === "completed") {
+    xml = xml.replace(/<w:t>days with <\/w:t>/, `<w:t xml:space="preserve">${xe(String(leave.days))} days with </w:t>`);
+  }
 
   zip.file("word/document.xml", xml);
 
@@ -471,7 +550,7 @@ export default function App(){
   ];
   // Returns only leave types available for a role
   const leaveTypesForRole=(role)=>LEAVE_TYPES.filter(lt=>lt.roles.includes(role==="admin"?"non-teaching":role));
-  const getMyCredits=()=>{const u=users.find(x=>x.username===auth?.username);return u?.credits||{};};
+  const getMyCredits=()=>{const u=users.find(x=>x.username===auth?.username);const c=u?.credits||{};if(typeof window!=="undefined")window.__tesCurrentCredits=c;return c;};
   const daysBetween=(s,e)=>{if(!s||!e)return 0;const d1=new Date(s),d2=new Date(e);return Math.round((d2-d1)/(1000*60*60*24))+1;};
 
   const canAccess=(navId)=>{
@@ -1908,6 +1987,7 @@ ${l.reason?`<div style="margin-top:2pt;font-size:8pt;font-style:italic;">${l.rea
               whereabouts:f.lvWhere||"",commutable:f.lvComm||"No",
               sickType:f.lvSickType||"",illness:f.lvIllness||"",
               serviceCreditsUsed:Number(f.lvSC||0),reliever:f.lvReliever||"",
+              snapshotCredits:{...myC},
               status:"pending",dateFiled:now(),remarks:""},...prev]);
             fr();setModal(null);
           }} full color="#0b2a52">Submit Leave Application</Btn></Modal>);})()}
