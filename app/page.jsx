@@ -1341,9 +1341,16 @@ tr:nth-child(even){background:#f5f7fa;}
     const printCS6=(l,withSig=true)=>{
       const chk="☑";const unc="☐";
       const is=(t)=>l.type===t||l.type?.includes(t);
-      // Parse name into Last, First, Middle (best-effort split)
-      const nameParts=(l.requester||"").split(",").map(s=>s.trim());
-      const last=nameParts[0]||"";const firstMid=(nameParts[1]||l.requester).split(" ");const first=firstMid[0]||"";const middle=firstMid.slice(1).join(" ")||"";
+      // Parse name into Last, First, Middle.
+      // "DELA CRUZ, Juan P."   -> Last:"DELA CRUZ", First:"Juan", Middle:"P."
+      // "William A. Buquia"    -> Last:"Buquia",   First:"William", Middle:"A."
+      // "Maria"                -> Last:"Maria",    First:"",        Middle:""
+      const _parseName=(full)=>{const s=(full||"").trim();if(!s)return{last:"",first:"",middle:""};
+        if(s.includes(",")){const[l1,rest]=s.split(/,\s*/);const tok=(rest||"").split(/\s+/).filter(Boolean);return{last:l1.trim(),first:tok[0]||"",middle:tok.slice(1).join(" ")};}
+        const tok=s.split(/\s+/).filter(Boolean);if(tok.length===1)return{last:tok[0],first:"",middle:""};
+        if(tok.length===2)return{last:tok[1],first:tok[0],middle:""};
+        return{last:tok[tok.length-1],first:tok[0],middle:tok.slice(1,-1).join(" ")};};
+      const _np=_parseName(l.requester);const last=_np.last;const first=_np.first;const middle=_np.middle;
       const sigBlock=withSig?`<img src="${E_SIG}" style="height:38pt;object-fit:contain;"/>`:`<div style="height:38pt;"></div>`;
       const actionSigBlock=withSig?`<img src="${E_SIG}" style="height:34pt;object-fit:contain;margin-bottom:-4pt;"/>`:`<div style="height:30pt;"></div>`;
       const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>CS Form 6 - ${l.requester}</title>
@@ -1489,8 +1496,12 @@ ${l.reason?`<div style="margin-top:2pt;font-size:8pt;font-style:italic;">${l.rea
     const downloadCS6Docx=(l,withSig=true)=>{
       const chk="☑";const unc="☐";
       const is=(t)=>l.type===t||l.type?.includes(t);
-      const nameParts=(l.requester||"").split(",").map(s=>s.trim());
-      const last=nameParts[0]||"";const firstMid=(nameParts[1]||l.requester).split(" ");const first=firstMid[0]||"";const middle=firstMid.slice(1).join(" ")||"";
+      const _parseName=(full)=>{const s=(full||"").trim();if(!s)return{last:"",first:"",middle:""};
+        if(s.includes(",")){const[l1,rest]=s.split(/,\s*/);const tok=(rest||"").split(/\s+/).filter(Boolean);return{last:l1.trim(),first:tok[0]||"",middle:tok.slice(1).join(" ")};}
+        const tok=s.split(/\s+/).filter(Boolean);if(tok.length===1)return{last:tok[0],first:"",middle:""};
+        if(tok.length===2)return{last:tok[1],first:tok[0],middle:""};
+        return{last:tok[tok.length-1],first:tok[0],middle:tok.slice(1,-1).join(" ")};};
+      const _np=_parseName(l.requester);const last=_np.last;const first=_np.first;const middle=_np.middle;
       const sigBlock=withSig?`<img src="${E_SIG}" style="height:38pt;"/>`:`<br/><br/>`;
       const html=`<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
 <head><meta charset="utf-8"><title>CS Form 6 - ${l.requester}</title>
