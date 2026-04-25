@@ -378,27 +378,38 @@ async function buildCS6Docx_v2(leave, withSig) {
   if (first)  xml = xml.replace(/<w:t>\(First\)<\/w:t>/, `<w:t xml:space="preserve">${xe(first)}  </w:t></w:r><w:r><w:rPr><w:sz w:val="14"/></w:rPr><w:t>(First)</w:t>`);
   if (middle) xml = xml.replace(/<w:t>\(Middle\)<\/w:t>/, `<w:t xml:space="preserve">${xe(middle)}  </w:t></w:r><w:r><w:rPr><w:sz w:val="14"/></w:rPr><w:t>(Middle)</w:t>`);
 
-  // ─── 2-7. SIMPLE TEXT FIELDS — replace the WHOLE label+space+tab zone with our content ───
-  // Strategy: for each label, find the unique full pattern including the trailing tab(s),
-  // then replace with the same structure but containing our value as plain text.
-  // Using normal-baseline run (no w:position offset) avoids font kerning glitches.
+  // ─── 2-7. SIMPLE TEXT FIELDS — preserve original tab structure, inject value cleanly ───
+  // The original template uses tabs with underline styling to draw the fill-in lines.
+  // We inject the value text INTO the spacing-run that comes between label and tab,
+  // keeping the tab structure intact so the underline geometry stays right.
 
-  // DATE OF FILING — covers: label, spacing-46 space-run, single-underline tab, plain tab
+  // DATE OF FILING — include trailing tabs to clear out baseline-2 artifacts.
+  // Original structure: label + spacing-run + underline-tab(pos2) + plain-tab(pos2)
+  // We replace ALL of that with: label + value-with-underline + plain-tab (clean baseline)
   const dateBlock = `<w:t>DATE OF FILING</w:t></w:r><w:r><w:rPr><w:spacing w:val="46"/><w:position w:val="2"/><w:sz w:val="16"/></w:rPr><w:t xml:space="preserve"> </w:t></w:r><w:r><w:rPr><w:position w:val="2"/><w:sz w:val="16"/><w:u w:val="single"/></w:rPr><w:tab/></w:r><w:r><w:rPr><w:position w:val="2"/><w:sz w:val="16"/></w:rPr><w:tab/></w:r>`;
   if (xml.includes(dateBlock)) {
-    xml = xml.replace(dateBlock, `<w:t xml:space="preserve">DATE OF FILING </w:t></w:r><w:r><w:rPr><w:sz w:val="16"/><w:u w:val="single"/></w:rPr><w:t xml:space="preserve"> ${xe(leave.dateFiled||"")} </w:t></w:r><w:r><w:rPr><w:sz w:val="16"/></w:rPr><w:t xml:space="preserve">          </w:t></w:r>`);
+    xml = xml.replace(
+      dateBlock,
+      `<w:t>DATE OF FILING</w:t></w:r><w:r><w:rPr><w:sz w:val="16"/><w:u w:val="single"/></w:rPr><w:t xml:space="preserve"> ${xe(leave.dateFiled||"")}</w:t></w:r><w:r><w:rPr><w:sz w:val="16"/></w:rPr><w:tab/></w:r>`
+    );
   }
 
-  // POSITION — covers: label, spacing-43 space, single-underline tab
+  // POSITION — same pattern: label + spacing-run + underline-tab → label + underlined-value + tab
   const posBlock = `<w:t>POSITION</w:t></w:r><w:r><w:rPr><w:spacing w:val="43"/><w:sz w:val="16"/></w:rPr><w:t xml:space="preserve"> </w:t></w:r><w:r><w:rPr><w:sz w:val="16"/><w:u w:val="single"/></w:rPr><w:tab/></w:r>`;
   if (xml.includes(posBlock)) {
-    xml = xml.replace(posBlock, `<w:t xml:space="preserve">POSITION  </w:t></w:r><w:r><w:rPr><w:sz w:val="16"/><w:u w:val="single"/></w:rPr><w:t xml:space="preserve">${xe(leave.position||"")}</w:t></w:r><w:r><w:rPr><w:sz w:val="16"/></w:rPr><w:tab/></w:r>`);
+    xml = xml.replace(
+      posBlock,
+      `<w:t>POSITION</w:t></w:r><w:r><w:rPr><w:sz w:val="16"/><w:u w:val="single"/></w:rPr><w:t xml:space="preserve"> ${xe(leave.position||"")}</w:t></w:r><w:r><w:rPr><w:sz w:val="16"/></w:rPr><w:tab/></w:r>`
+    );
   }
 
-  // SALARY — covers: label, spacing-47 space, single-underline tab
+  // SALARY
   const salBlock = `<w:t>SALARY</w:t></w:r><w:r><w:rPr><w:spacing w:val="47"/><w:sz w:val="16"/></w:rPr><w:t xml:space="preserve"> </w:t></w:r><w:r><w:rPr><w:sz w:val="16"/><w:u w:val="single"/></w:rPr><w:tab/></w:r>`;
   if (xml.includes(salBlock)) {
-    xml = xml.replace(salBlock, `<w:t xml:space="preserve">SALARY  </w:t></w:r><w:r><w:rPr><w:sz w:val="16"/><w:u w:val="single"/></w:rPr><w:t xml:space="preserve">${xe(leave.salary||"")}</w:t></w:r><w:r><w:rPr><w:sz w:val="16"/></w:rPr><w:tab/></w:r>`);
+    xml = xml.replace(
+      salBlock,
+      `<w:t>SALARY</w:t></w:r><w:r><w:rPr><w:sz w:val="16"/><w:u w:val="single"/></w:rPr><w:t xml:space="preserve"> ${xe(leave.salary||"")}</w:t></w:r><w:r><w:rPr><w:sz w:val="16"/></w:rPr><w:tab/></w:r>`
+    );
   }
 
   // 6.C NUMBER OF WORKING DAYS APPLIED FOR — second occurrence of "FOR" (first is in title)
