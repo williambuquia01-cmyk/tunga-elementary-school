@@ -550,6 +550,7 @@ async function buildCS6Docx_v2(leave, withSig) {
       // to force Word to use the modified VML path. This is the only way to ensure
       // our checkmark renders.
       xml = xml.replace(/\so:gfxdata="[^"]*"/g, "");
+      xml = xml.replace(/<w:r>\s*<w:rPr>\s*<w:noProof\/>\s*<w:position w:val="2"\/>\s*<w:sz w:val="16"\/>\s*<\/w:rPr>\s*<mc:AlternateContent>[\s\S]*?<\/mc:AlternateContent>\s*<mc:AlternateContent>[\s\S]*?<\/mc:AlternateContent>\s*<\/w:r>/g, ''); /* WHITE_TEXTBOX_STRIP - Phase 3.8 - strips white-fill textboxes hiding DATE/POSITION values */
     }
   }
 
