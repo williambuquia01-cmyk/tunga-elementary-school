@@ -551,6 +551,29 @@ async function buildCS6Docx_v2(leave, withSig) {
       // our checkmark renders.
       xml = xml.replace(/\so:gfxdata="[^"]*"/g, "");
       xml = xml.replace(/<w:r>\s*<w:rPr>\s*<w:noProof\/>\s*<w:position w:val="2"\/>\s*<w:sz w:val="16"\/>\s*<\/w:rPr>\s*<mc:AlternateContent>[\s\S]*?<\/mc:AlternateContent>\s*<\/w:r>/g, ''); /* WHITE_TEXTBOX_STRIP_V2 - Phase 3.9 - per-textbox runs (not pair-wrapped); strips 5 white-fill overlays hiding row 3 + 6.C labels */
+      { /* PHASE_4_FIX_BC - replace stray U+2713 text run with real DrawingML check inside box graphic */
+        const _ckIdx = xml.indexOf('\u2713');
+        if (_ckIdx >= 0) {
+          const _afterCk = xml.substring(_ckIdx + 1);
+          const _m = _afterCk.match(/<w:t[^>]*>([^<]+)<\/w:t>/);
+          if (_m) {
+            const _yMap = {
+              'Vacation Leave': 0, 'Mandatory/Forced': 187325, 'Sick Leave': 374650,
+              'Maternity Leave': 561975, 'Paternity Leave': 749300, 'Special': 937259,
+              'Solo': 1124584, 'Study': 1311909, 'VAWC': 1499869,
+              'Rehabilitation': 1687194, 'Special Leave Benefits for': 1874519,
+              'Special Emergency (Calamity) Leave': 2061844, 'Adoption': 2249169
+            };
+            const _y = _yMap[_m[1].trim()];
+            if (_y !== undefined) {
+              const _paths = '<a:path w="158115" h="2412365"><a:moveTo><a:pt x="25000" y="' + (77470+_y) + '"/></a:moveTo><a:lnTo><a:pt x="65000" y="' + (134939+_y) + '"/></a:lnTo></a:path><a:path w="158115" h="2412365"><a:moveTo><a:pt x="65000" y="' + (134939+_y) + '"/></a:moveTo><a:lnTo><a:pt x="140000" y="' + (25000+_y) + '"/></a:lnTo></a:path>';
+              const _lastPath = '<a:path w="158115" h="2412365"><a:moveTo><a:pt x="10159" y="2019934"/></a:moveTo><a:lnTo><a:pt x="158115" y="2019934"/></a:lnTo></a:path>';
+              xml = xml.replace(_lastPath + '</a:pathLst>', _lastPath + _paths + '</a:pathLst>');
+            }
+          }
+          xml = xml.replace('<w:r><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:b/><w:sz w:val="22"/></w:rPr><w:t xml:space="preserve">\u2713 </w:t></w:r>', '');
+        }
+      }
     }
   }
 
