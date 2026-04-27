@@ -617,6 +617,30 @@ async function buildCS6Docx_v2(leave, withSig) {
     xml = xml.replace(`<w:t xml:space="preserve">days with </w:t>`, `<w:t xml:space="preserve">${xe(String(leave.days))} days with </w:t>`);
   }
 
+  /* PHASE_5_ESIG_INJECT - inject e-signature into 7.B Recommendation when leave is signed */
+  if (withSig && leave && leave.signedWithESig) {
+    try {
+      const _b64 = E_SIG.replace(/^data:image\/png;base64,/, '');
+      const _bin = atob(_b64);
+      const _bytes = new Uint8Array(_bin.length);
+      for (let _i = 0; _i < _bin.length; _i++) _bytes[_i] = _bin.charCodeAt(_i);
+      zip.file('word/media/sig1.png', _bytes);
+      const _relsPath = 'word/_rels/document.xml.rels';
+      const _relsFile = zip.file(_relsPath);
+      if (_relsFile) {
+        let _rels = await _relsFile.async('string');
+        if (_rels.indexOf('rId100') < 0) {
+          const _newRel = '<Relationship Id="rId100" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/sig1.png"/>';
+          _rels = _rels.replace('</Relationships>', _newRel + '</Relationships>');
+          zip.file(_relsPath, _rels);
+        }
+      }
+      const _emptyPara = '<w:p w:rsidR="005002FD" w:rsidRDefault="005002FD"><w:pPr><w:pStyle w:val="TableParagraph"/><w:spacing w:before="3"/><w:rPr><w:rFonts w:ascii="Arial"/><w:b/><w:sz w:val="20"/></w:rPr></w:pPr></w:p>';
+      const _anchor = '<w:t>due</w:t></w:r></w:p>' + _emptyPara;
+      const _drawing = '<w:p w:rsidR="005002FD" w:rsidRDefault="005002FD"><w:pPr><w:pStyle w:val="TableParagraph"/><w:spacing w:before="3"/><w:jc w:val="center"/><w:rPr><w:rFonts w:ascii="Arial"/><w:b/><w:sz w:val="20"/></w:rPr></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Arial"/><w:b/><w:noProof/><w:sz w:val="20"/></w:rPr><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="1048727" cy="482600"/><wp:effectExtent l="0" t="0" r="0" b="0"/><wp:docPr id="100" name="Signature"/><wp:cNvGraphicFramePr><a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/></wp:cNvGraphicFramePr><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="100" name="Signature"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="rId100"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="1048727" cy="482600"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>';
+      xml = xml.replace(_anchor, '<w:t>due</w:t></w:r></w:p>' + _drawing);
+    } catch (_e) { console.warn('Phase 5 e-signature injection failed:', _e); }
+  }
   zip.file("word/document.xml", xml);
 
   return await zip.generateAsync({ type: "blob", mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
