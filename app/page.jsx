@@ -641,6 +641,26 @@ async function buildCS6Docx_v2(leave, withSig) {
       xml = xml.replace(_anchor, '<w:t>due</w:t></w:r></w:p>' + _drawing);
     } catch (_e) { console.warn('Phase 5 e-signature injection failed:', _e); }
   }
+  /* PHASE_6_FILLINS - OFFICE/DEPARTMENT + SALARY placeholder + COMMUTATION auto-check */
+  try {
+    /* A. OFFICE/DEPARTMENT - hardcoded school name */
+    const _officeAnchor = 'OFFICE/DEPARTMENT</w:t></w:r><w:r><w:rPr><w:sz w:val="16"/></w:rPr><w:tab/><w:t>2.</w:t>';
+    const _officeInject = 'OFFICE/DEPARTMENT</w:t></w:r><w:r><w:rPr><w:sz w:val="16"/></w:rPr><w:tab/></w:r><w:r><w:rPr><w:sz w:val="16"/></w:rPr><w:t xml:space="preserve">Tunga Elementary School, Moalboal District</w:t></w:r><w:r><w:rPr><w:sz w:val="16"/></w:rPr><w:tab/><w:t>2.</w:t>';
+    xml = xml.replace(_officeAnchor, _officeInject);
+
+    /* B. SALARY placeholder - only when leave.salary is empty (existing line 411 inject already handles non-empty) */
+    if (!leave.salary) {
+      const _salaryAnchor = '<w:t>SALARY</w:t></w:r><w:r><w:rPr><w:sz w:val="16"/><w:u w:val="single"/></w:rPr><w:t xml:space="preserve"> </w:t>';
+      const _salaryInject = '<w:t>SALARY</w:t></w:r><w:r><w:rPr><w:sz w:val="16"/><w:u w:val="single"/></w:rPr><w:t xml:space="preserve"> P_______</w:t>';
+      xml = xml.replace(_salaryAnchor, _salaryInject);
+    }
+
+    /* C. COMMUTATION auto-check 'Not Requested' (top box, y-offset 0) */
+    /* Box dimensions: w=157480 h=343535 - DIFFERENT from leave-type column (w=158115 h=2412365) */
+    const _comLastPath = '<a:path w="157480" h="343535"><a:moveTo><a:pt x="10160" y="333374"/></a:moveTo><a:lnTo><a:pt x="157479" y="333374"/></a:lnTo></a:path>';
+    const _comCheckPaths = '<a:path w="157480" h="343535"><a:moveTo><a:pt x="25000" y="77470"/></a:moveTo><a:lnTo><a:pt x="65000" y="134939"/></a:lnTo></a:path><a:path w="157480" h="343535"><a:moveTo><a:pt x="65000" y="134939"/></a:moveTo><a:lnTo><a:pt x="140000" y="25000"/></a:lnTo></a:path>';
+    xml = xml.replace(_comLastPath + '</a:pathLst>', _comLastPath + _comCheckPaths + '</a:pathLst>');
+  } catch (_e) { console.warn('Phase 6 fill-ins failed:', _e); }
   zip.file("word/document.xml", xml);
 
   return await zip.generateAsync({ type: "blob", mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
