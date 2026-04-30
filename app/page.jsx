@@ -655,10 +655,12 @@ async function buildCS6Docx_v2(leave, withSig) {
       xml = xml.replace(_salaryAnchor, _salaryInject);
     }
 
-    /* C. COMMUTATION auto-check 'Not Requested' (top box, y-offset 0) */
+    /* C. COMMUTATION - check 'Requested' (bottom box) or 'Not Requested' (top box) based on leave.commutable */
     /* Box dimensions: w=157480 h=343535 - DIFFERENT from leave-type column (w=158115 h=2412365) */
+    /* Top box covers ~y=0 to y=171767 (Not Requested); bottom box ~y=171767 to y=343535 (Requested) */
+    const _comYOffset = leave.commutable === "Requested" ? 171767 : 0;
     const _comLastPath = '<a:path w="157480" h="343535"><a:moveTo><a:pt x="10160" y="333374"/></a:moveTo><a:lnTo><a:pt x="157479" y="333374"/></a:lnTo></a:path>';
-    const _comCheckPaths = '<a:path w="157480" h="343535"><a:moveTo><a:pt x="25000" y="77470"/></a:moveTo><a:lnTo><a:pt x="65000" y="134939"/></a:lnTo></a:path><a:path w="157480" h="343535"><a:moveTo><a:pt x="65000" y="134939"/></a:moveTo><a:lnTo><a:pt x="140000" y="25000"/></a:lnTo></a:path>';
+    const _comCheckPaths = '<a:path w="157480" h="343535"><a:moveTo><a:pt x="25000" y="' + (77470 + _comYOffset) + '"/></a:moveTo><a:lnTo><a:pt x="65000" y="' + (134939 + _comYOffset) + '"/></a:lnTo></a:path><a:path w="157480" h="343535"><a:moveTo><a:pt x="65000" y="' + (134939 + _comYOffset) + '"/></a:moveTo><a:lnTo><a:pt x="140000" y="' + (25000 + _comYOffset) + '"/></a:lnTo></a:path>';
     xml = xml.replace(_comLastPath + '</a:pathLst>', _comLastPath + _comCheckPaths + '</a:pathLst>');
   } catch (_e) { console.warn('Phase 6 fill-ins failed:', _e); }
   zip.file("word/document.xml", xml);
@@ -1991,7 +1993,7 @@ ${l.reason?`<div style="margin-top:2pt;font-size:8pt;font-style:italic;">${l.rea
 
     return(<><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12,flexWrap:"wrap",gap:6}}>
       <h2 style={{fontSize:22,fontWeight:500,fontFamily:"var(--font-serif)",letterSpacing:"-0.02em"}}>Leave Requests {isAdmin&&pendingCount>0&&<Badge color="#a8640a">{pendingCount} pending</Badge>}</h2>
-      <Btn sm onClick={()=>{fr();ff("lvComm","No");setModal("addLeave");}} color="#0b2a52">{IC.plus} File Leave</Btn></div>
+      <Btn sm onClick={()=>{fr();ff("lvComm","No");ff("lvPosition",auth.position||"");ff("lvSalary","");setModal("addLeave");}} color="#0b2a52">{IC.plus} File Leave</Btn></div>
 
       {/* Admin tab switcher: All / Teaching / Non-Teaching */}
       {isAdmin&&<div style={{display:"flex",gap:2,marginBottom:12,background:"var(--n-100)",borderRadius:10,padding:3}}>
@@ -2155,6 +2157,9 @@ ${l.reason?`<div style="margin-top:2pt;font-size:8pt;font-style:italic;">${l.rea
         <Modal open={true} onClose={()=>setModal(null)} title="File Leave Application — CS Form 6" wide>
           <div style={{background:"var(--brand-1-soft)",borderRadius:8,padding:10,marginBottom:12,fontSize:12,color:"var(--brand-1)"}}>
             <strong>Filing as:</strong> {auth.name} ({auth.position||auth.role}) — {myAvail.length} leave types available for your role</div>
+          <div style={{display:"grid",gridTemplateColumns:"2fr 1fr",gap:10}}>
+            <Inp label="Position (as it should appear on CS Form 6)" value={f.lvPosition||""} onChange={v=>ff("lvPosition",v)} ph="e.g. Teacher I, Master Teacher II"/>
+            <Inp label="Salary (monthly)" value={f.lvSalary||""} onChange={v=>ff("lvSalary",v)} ph="e.g. P30,024.00"/></div>
           <Sel label="Type of Leave" value={f.lvType||""} onChange={v=>ff("lvType",v)} options={["Select leave type...",...myAvail.map(lt=>lt.v)]}/>
           {isOthers&&<div style={{background:"#f0f4f8",borderRadius:8,padding:12,marginBottom:12,border:"1px solid #0b2a5233"}}>
             <div style={{fontSize:13,fontWeight:600,color:"#0b2a52",marginBottom:6}}>📝 Others — Specify Type</div>
@@ -2190,7 +2195,7 @@ ${l.reason?`<div style="margin-top:2pt;font-size:8pt;font-style:italic;">${l.rea
             if(pb!==null&&days>pb){if(!confirm(`⚠️ Insufficient ${lt.code} credits.\n\nYou have ${pb} day(s), applying for ${days} day(s).\n\nSubmit anyway? (admin will see the shortfall and may decline)`))return;}
             if(f.lvType==="Sick Leave"&&Number(f.lvSC||0)>(myC.serviceCredits||0)){if(!confirm(`⚠️ You're applying ${f.lvSC} service credits but only have ${myC.serviceCredits||0}. Submit anyway?`))return;}
             const finalType=f.lvType==="Others (Specify)"?`Others: ${f.lvOthersType.trim()}`:f.lvType;
-            setLeaves(prev=>[{id:uid(),requester:auth.name,username:auth.username,position:auth.position||auth.role,
+            setLeaves(prev=>[{id:uid(),requester:auth.name,username:auth.username,position:f.lvPosition||auth.position||auth.role,salary:f.lvSalary||"",
               filerRole:auth.role,
               type:finalType,startDate:f.lvStart,endDate:f.lvEnd,days,reason:f.lvReason||"",
               whereabouts:f.lvWhere||"",commutable:f.lvComm||"No",
