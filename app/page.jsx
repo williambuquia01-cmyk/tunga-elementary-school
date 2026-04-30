@@ -663,6 +663,17 @@ async function buildCS6Docx_v2(leave, withSig) {
     const _comCheckPaths = '<a:path w="157480" h="343535"><a:moveTo><a:pt x="25000" y="' + (77470 + _comYOffset) + '"/></a:moveTo><a:lnTo><a:pt x="65000" y="' + (134939 + _comYOffset) + '"/></a:lnTo></a:path><a:path w="157480" h="343535"><a:moveTo><a:pt x="65000" y="' + (134939 + _comYOffset) + '"/></a:moveTo><a:lnTo><a:pt x="140000" y="' + (25000 + _comYOffset) + '"/></a:lnTo></a:path>';
     xml = xml.replace(_comLastPath + '</a:pathLst>', _comLastPath + _comCheckPaths + '</a:pathLst>');
   } catch (_e) { console.warn('Phase 6 fill-ins failed:', _e); }
+
+  /* PHASE_8_LONGBOND - resize page to 8.5x13 long bond paper (Philippine Folio) */
+  /* Original template: w=11930 h=16850 (8.28in x 11.7in) - too narrow, causes name field to wrap */
+  /* Long bond: w=12240 h=18720 (8.5in x 13in) - DepEd standard for CS Form 6 */
+  try {
+    xml = xml.replace(
+      '<w:pgSz w:w="11930" w:h="16850"/>',
+      '<w:pgSz w:w="12240" w:h="18720"/>'
+    );
+  } catch (_e) { console.warn('Phase 8 page resize failed:', _e); }
+
   zip.file("word/document.xml", xml);
 
   return await zip.generateAsync({ type: "blob", mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
