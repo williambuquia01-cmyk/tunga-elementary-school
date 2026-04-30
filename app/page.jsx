@@ -645,7 +645,9 @@ async function buildCS6Docx_v2(leave, withSig) {
   try {
     /* A. OFFICE/DEPARTMENT - hardcoded school name */
     const _officeAnchor = 'OFFICE/DEPARTMENT</w:t></w:r><w:r><w:rPr><w:sz w:val="16"/></w:rPr><w:tab/><w:t>2.</w:t>';
-    const _officeInject = 'OFFICE/DEPARTMENT</w:t></w:r><w:r><w:rPr><w:sz w:val="16"/></w:rPr><w:tab/></w:r><w:r><w:rPr><w:sz w:val="16"/></w:rPr><w:t xml:space="preserve">Tunga Elementary School, Moalboal District</w:t></w:r><w:r><w:rPr><w:sz w:val="16"/></w:rPr><w:tab/><w:t>2.</w:t>';
+    /* PHASE_9A_OFFICE_FIX - shortened to "Tunga Elementary School" (was "...Moalboal District"); the long form pushed past the
+       OFFICE/DEPT cell's tab stop at 4917 twips, jamming "2. NAME:" inline and wrapping First/Middle to the next visual line. */
+    const _officeInject = 'OFFICE/DEPARTMENT</w:t></w:r><w:r><w:rPr><w:sz w:val="16"/></w:rPr><w:tab/></w:r><w:r><w:rPr><w:sz w:val="16"/></w:rPr><w:t xml:space="preserve">Tunga Elementary School</w:t></w:r><w:r><w:rPr><w:sz w:val="16"/></w:rPr><w:tab/><w:t>2.</w:t>';
     xml = xml.replace(_officeAnchor, _officeInject);
 
     /* B. SALARY placeholder - only when leave.salary is empty (existing line 411 inject already handles non-empty) */
@@ -2004,7 +2006,7 @@ ${l.reason?`<div style="margin-top:2pt;font-size:8pt;font-style:italic;">${l.rea
 
     return(<><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12,flexWrap:"wrap",gap:6}}>
       <h2 style={{fontSize:22,fontWeight:500,fontFamily:"var(--font-serif)",letterSpacing:"-0.02em"}}>Leave Requests {isAdmin&&pendingCount>0&&<Badge color="#a8640a">{pendingCount} pending</Badge>}</h2>
-      <Btn sm onClick={()=>{fr();ff("lvComm","No");ff("lvPosition",auth.position||"");ff("lvSalary","");setModal("addLeave");}} color="#0b2a52">{IC.plus} File Leave</Btn></div>
+      <Btn sm onClick={()=>{fr();ff("lvComm","No");ff("lvPosition",auth.position||"");ff("lvSalary","");ff("lvWhereType","none");ff("lvWhere","");ff("lvWhereCountry","");setModal("addLeave");}} color="#0b2a52">{IC.plus} File Leave</Btn></div>
 
       {/* Admin tab switcher: All / Teaching / Non-Teaching */}
       {isAdmin&&<div style={{display:"flex",gap:2,marginBottom:12,background:"var(--n-100)",borderRadius:10,padding:3}}>
@@ -2194,7 +2196,19 @@ ${l.reason?`<div style="margin-top:2pt;font-size:8pt;font-style:italic;">${l.rea
             <Sel label="Teacher Reliever (from list)" value={f.lvRelieverSel||""} onChange={v=>{ff("lvRelieverSel",v);if(v&&v!=="__other__"&&v!=="Select a teacher...")ff("lvReliever",v);}} options={["Select a teacher...",...users.filter(u=>u.role==="teacher"&&u.username!==auth.username).map(u=>u.name),"__other__"]}/>
             {(f.lvRelieverSel==="__other__"||!f.lvRelieverSel||f.lvRelieverSel==="Select a teacher...")&&<Inp label="Or type reliever name" value={f.lvReliever||""} onChange={v=>ff("lvReliever",v)} ph="Reliever's full name"/>}</div>}
           <Inp label={isOthers||f.lvType==="Special Privilege Leave"?"Reason (required)":"Details / Reason"} value={f.lvReason||""} onChange={v=>ff("lvReason",v)} ta ph="Purpose of leave, nature of illness, etc."/>
-          <Inp label="Whereabouts during leave" value={f.lvWhere||""} onChange={v=>ff("lvWhere",v)} ph="Within Philippines / Abroad (specify country)"/>
+          {/* PHASE_9B_WHEREABOUTS_RADIO - replaces free-text Whereabouts with explicit radio choice
+             that maps onto the CS Form 6 §6.B "Within the Philippines / Abroad" checkbox pair. The
+             selected value still ends up in leave.whereabouts as a single string (e.g. "Abroad: Japan"),
+             so downstream PDF/DOCX rendering and old leaves stay readable. */}
+          <div style={{marginBottom:12,padding:"10px 12px",background:"var(--n-25)",borderRadius:8,border:"1px solid var(--border)"}}>
+            <label style={{display:"block",fontSize:13,fontWeight:500,color:"#666",marginBottom:6}}>Whereabouts during leave</label>
+            <div style={{display:"flex",gap:14,flexWrap:"wrap",marginBottom:f.lvWhereType==="abroad"?8:0}}>
+              {[{v:"within",l:"Within the Philippines"},{v:"abroad",l:"Abroad"},{v:"none",l:"Not applicable"}].map(opt=>(
+                <label key={opt.v} style={{display:"flex",alignItems:"center",gap:5,cursor:"pointer",fontSize:13,color:"var(--ink)"}}>
+                  <input type="radio" name="lvWhereType" value={opt.v} checked={f.lvWhereType===opt.v} onChange={()=>{ff("lvWhereType",opt.v);if(opt.v==="within")ff("lvWhere","Within the Philippines");else if(opt.v==="none")ff("lvWhere","");else ff("lvWhere","Abroad: "+(f.lvWhereCountry||""));}}/>
+                  {opt.l}</label>))}</div>
+            {f.lvWhereType==="abroad"&&<input style={sI} placeholder="Specify country (e.g. Japan, USA)" value={f.lvWhereCountry||""} onChange={e=>{const v=e.target.value;ff("lvWhereCountry",v);ff("lvWhere","Abroad: "+v);}}/>}
+          </div>
           <Sel label="Commutation" value={f.lvComm||"No"} onChange={v=>ff("lvComm",v)} options={["No","Requested"]}/>
           <Btn onClick={()=>{
             if(!f.lvType||f.lvType==="Select leave type..."||!f.lvStart||!f.lvEnd){alert("Please fill in leave type, start date, and end date");return;}
