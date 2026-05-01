@@ -659,6 +659,23 @@ async function buildCS6Docx_v2(leave, withSig) {
     const _newTabs  = '<w:tabs><w:tab w:val="left" w:pos="3607"/><w:tab w:val="left" w:pos="4917"/><w:tab w:val="left" w:pos="6754"/><w:tab w:val="left" w:pos="8200"/><w:tab w:val="left" w:pos="9450"/></w:tabs>';
     xml = xml.replace(_origTabs, _newTabs);
 
+    /* PHASE_11A_NAME_ANNOT_SHRINK - Phase 9C alone wasn't enough: "(First)" still wrapped because
+       the First column (8200 -> 9450 = 1250 twips) couldn't fit "William  " + "(First)" at sz=16/sz=14.
+       Shrink the three annotation labels (Last)/(First)/(Middle) from sz=14 (7pt) to sz=12 (6pt) to
+       reclaim ~15% horizontal width per annotation. Combined with Phase 9C, every name segment now fits. */
+    xml = xml.replace(
+      '<w:rPr><w:sz w:val="14"/></w:rPr><w:t>(Last)</w:t>',
+      '<w:rPr><w:sz w:val="12"/></w:rPr><w:t>(Last)</w:t>'
+    );
+    xml = xml.replace(
+      '<w:rPr><w:sz w:val="14"/></w:rPr><w:t>(First)</w:t>',
+      '<w:rPr><w:sz w:val="12"/></w:rPr><w:t>(First)</w:t>'
+    );
+    xml = xml.replace(
+      '<w:rPr><w:sz w:val="14"/></w:rPr><w:t>(Middle)</w:t>',
+      '<w:rPr><w:sz w:val="12"/></w:rPr><w:t>(Middle)</w:t>'
+    );
+
     /* B. SALARY placeholder - only when leave.salary is empty (existing line 411 inject already handles non-empty) */
     if (!leave.salary) {
       const _salaryAnchor = '<w:t>SALARY</w:t></w:r><w:r><w:rPr><w:sz w:val="16"/><w:u w:val="single"/></w:rPr><w:t xml:space="preserve"> </w:t>';
@@ -675,32 +692,63 @@ async function buildCS6Docx_v2(leave, withSig) {
     xml = xml.replace(_comLastPath + '</a:pathLst>', _comLastPath + _comCheckPaths + '</a:pathLst>');
   } catch (_e) { console.warn('Phase 6 fill-ins failed:', _e); }
 
-  /* PHASE_10_SUBCHECKS - inject DrawingML check strokes into the §6.B paired-checkbox shapes for
-     Whereabouts (Within Philippines / Abroad) and Sick Leave (In Hospital / Out Patient).
-     Each shape has a unique last-path string (different y-coord) used as the anchor.
-     Stroke geometry mirrors the leave-type pattern: down-stroke + up-stroke = ✓.
-     Top-box y-offset = +10160 (small inset from the box's top border).
-     Bottom-box y-offset = +197484 or +197485 depending on shape. */
+  /* PHASE_10_SUBCHECKS (CORRECTED via PHASE_11, GUARDED via PHASE_12) - inject DrawingML check
+     strokes into the §6.B paired-checkbox shapes. Phase 12 adds semantic-consistency guards: each
+     checkbox group only ticks when the leave's type semantically matches that section, defending
+     against stale data from pre-Phase 11 leaves where lvSickType/etc. could persist on unrelated
+     leave types. Anchor map:
+       Within/Abroad shape         h=342900 last_y=332739
+       Master's/BAR shape          h=342900 last_y=333374
+       Hospital/OutPatient shape   h=350520 last_y=340995
+       Monetization/Terminal shape h=342900 last_y=332740
+       (6.D Commutation             h=343535 last_y=333374 — handled in Phase 6)
+     Top-box y-offset = +10160; Bottom-box y-offset = +197484/+197485. */
   try {
-    /* A. Whereabouts — Within Philippines / Abroad (shape h=342900, last-path y=333374) */
+    /* Helper to build the ✓ stroke pair for any shape */
+    const _mkCheck = (h, yOff) => '<a:path w="157480" h="' + h + '"><a:moveTo><a:pt x="25000" y="' + (50000 + yOff) + '"/></a:moveTo><a:lnTo><a:pt x="60000" y="' + (110000 + yOff) + '"/></a:lnTo></a:path><a:path w="157480" h="' + h + '"><a:moveTo><a:pt x="60000" y="' + (110000 + yOff) + '"/></a:moveTo><a:lnTo><a:pt x="135000" y="' + (20000 + yOff) + '"/></a:lnTo></a:path>';
+    const _mkLastPath = (h, ly) => '<a:path w="157480" h="' + h + '"><a:moveTo><a:pt x="10160" y="' + ly + '"/></a:moveTo><a:lnTo><a:pt x="157479" y="' + ly + '"/></a:lnTo></a:path>';
+
+    /* PHASE_12_SEMANTIC_GUARDS - each Boolean below is true only when the leave's type matches the
+       checkbox section. Without these guards, a leave saved with stale sickType/whereabouts/etc.
+       in storage would tick boxes that don't apply to its actual leave type. */
+    const _lt = leave.type || "";
+    const _isVacOrPrivilege = _lt === "Vacation Leave" || _lt === "Special Privilege Leave";
+    const _isSick           = _lt === "Sick Leave";
+    const _isStudy          = _lt === "Study Leave";
+
+    /* A. Whereabouts — Within Philippines / Abroad (h=342900, last_y=332739) */
     const _w = (leave.whereabouts || "").toLowerCase();
-    const _withinChosen = _w.startsWith("within") || _w.includes("philippines");
+    const _withinChosen = _w.startsWith("within") || (_w.includes("philippines") && !_w.startsWith("abroad"));
     const _abroadChosen = _w.startsWith("abroad");
-    if (_withinChosen || _abroadChosen) {
-      const _waYOffset = _abroadChosen ? 197484 : 10160;
-      const _waLastPath = '<a:path w="157480" h="342900"><a:moveTo><a:pt x="10160" y="333374"/></a:moveTo><a:lnTo><a:pt x="157479" y="333374"/></a:lnTo></a:path>';
-      const _waCheckPaths = '<a:path w="157480" h="342900"><a:moveTo><a:pt x="25000" y="' + (50000 + _waYOffset) + '"/></a:moveTo><a:lnTo><a:pt x="60000" y="' + (110000 + _waYOffset) + '"/></a:lnTo></a:path><a:path w="157480" h="342900"><a:moveTo><a:pt x="60000" y="' + (110000 + _waYOffset) + '"/></a:moveTo><a:lnTo><a:pt x="135000" y="' + (20000 + _waYOffset) + '"/></a:lnTo></a:path>';
-      xml = xml.replace(_waLastPath + '</a:pathLst>', _waLastPath + _waCheckPaths + '</a:pathLst>');
+    if (_isVacOrPrivilege && (_withinChosen || _abroadChosen)) {
+      const _lp = _mkLastPath('342900', '332739');
+      const _yOff = _abroadChosen ? 197484 : 10160;
+      xml = xml.replace(_lp + '</a:pathLst>', _lp + _mkCheck('342900', _yOff) + '</a:pathLst>');
     }
 
-    /* B. Sick leave — In Hospital / Out Patient (shape h=350520, last-path y=340995) */
-    if (leave.sickType === "hospital" || leave.sickType === "outpatient") {
-      const _sYOffset = leave.sickType === "outpatient" ? 197485 : 10160;
-      const _sLastPath = '<a:path w="157480" h="350520"><a:moveTo><a:pt x="10160" y="340995"/></a:moveTo><a:lnTo><a:pt x="157479" y="340995"/></a:lnTo></a:path>';
-      const _sCheckPaths = '<a:path w="157480" h="350520"><a:moveTo><a:pt x="25000" y="' + (50000 + _sYOffset) + '"/></a:moveTo><a:lnTo><a:pt x="60000" y="' + (110000 + _sYOffset) + '"/></a:lnTo></a:path><a:path w="157480" h="350520"><a:moveTo><a:pt x="60000" y="' + (110000 + _sYOffset) + '"/></a:moveTo><a:lnTo><a:pt x="135000" y="' + (20000 + _sYOffset) + '"/></a:lnTo></a:path>';
-      xml = xml.replace(_sLastPath + '</a:pathLst>', _sLastPath + _sCheckPaths + '</a:pathLst>');
+    /* B. Sick leave — In Hospital / Out Patient (h=350520, last_y=340995) */
+    if (_isSick && (leave.sickType === "hospital" || leave.sickType === "outpatient")) {
+      const _lp = _mkLastPath('350520', '340995');
+      const _yOff = leave.sickType === "outpatient" ? 197485 : 10160;
+      xml = xml.replace(_lp + '</a:pathLst>', _lp + _mkCheck('350520', _yOff) + '</a:pathLst>');
     }
-  } catch (_e) { console.warn('Phase 10 sub-checks failed:', _e); }
+
+    /* C. Study Leave — Master's Degree / BAR Review (h=342900, last_y=333374) */
+    if (_isStudy && (leave.studyType === "masters" || leave.studyType === "bar")) {
+      const _lp = _mkLastPath('342900', '333374');
+      const _yOff = leave.studyType === "bar" ? 197484 : 10160;
+      xml = xml.replace(_lp + '</a:pathLst>', _lp + _mkCheck('342900', _yOff) + '</a:pathLst>');
+    }
+
+    /* D. Other Purpose — Monetization / Terminal (h=342900, last_y=332740)
+       Permissive: not gated to a specific leave type because Monetization/Terminal can apply to
+       multiple leave types depending on agency practice. User picks it explicitly. */
+    if (leave.otherPurpose === "monetization" || leave.otherPurpose === "terminal") {
+      const _lp = _mkLastPath('342900', '332740');
+      const _yOff = leave.otherPurpose === "terminal" ? 197484 : 10160;
+      xml = xml.replace(_lp + '</a:pathLst>', _lp + _mkCheck('342900', _yOff) + '</a:pathLst>');
+    }
+  } catch (_e) { console.warn('Phase 10/11/12 sub-checks failed:', _e); }
 
   /* PHASE_8_LONGBOND - resize page to 8.5x13 long bond paper (Philippine Folio) */
   /* Original template: w=11930 h=16850 (8.28in x 11.7in) - too narrow, causes name field to wrap */
@@ -2042,7 +2090,7 @@ ${l.reason?`<div style="margin-top:2pt;font-size:8pt;font-style:italic;">${l.rea
 
     return(<><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12,flexWrap:"wrap",gap:6}}>
       <h2 style={{fontSize:22,fontWeight:500,fontFamily:"var(--font-serif)",letterSpacing:"-0.02em"}}>Leave Requests {isAdmin&&pendingCount>0&&<Badge color="#a8640a">{pendingCount} pending</Badge>}</h2>
-      <Btn sm onClick={()=>{fr();ff("lvComm","No");ff("lvPosition",auth.position||"");ff("lvSalary","");ff("lvWhereType","none");ff("lvWhere","");ff("lvWhereCountry","");setModal("addLeave");}} color="#0b2a52">{IC.plus} File Leave</Btn></div>
+      <Btn sm onClick={()=>{fr();ff("lvComm","No");ff("lvPosition",auth.position||"");ff("lvSalary","");ff("lvWhereType","none");ff("lvWhere","");ff("lvWhereCountry","");ff("lvSickType","");ff("lvStudyType","");ff("lvOtherPurpose","");ff("lvIllness","");setModal("addLeave");}} color="#0b2a52">{IC.plus} File Leave</Btn></div>
 
       {/* Admin tab switcher: All / Teaching / Non-Teaching */}
       {isAdmin&&<div style={{display:"flex",gap:2,marginBottom:12,background:"var(--n-100)",borderRadius:10,padding:3}}>
@@ -2220,32 +2268,75 @@ ${l.reason?`<div style="margin-top:2pt;font-size:8pt;font-style:italic;">${l.rea
             <Inp label="End Date" value={f.lvEnd||""} onChange={v=>ff("lvEnd",v)} type="date"/></div>
           {f.lvStart&&f.lvEnd&&<div style={{fontSize:12,color:"var(--brand-1)",marginBottom:10,fontWeight:600}}>📅 Total: {daysReq} working day(s)</div>}
           {isSick&&<div style={{background:"#faefd8",borderRadius:8,padding:12,marginBottom:12,border:"1px solid #a8640a33"}}>
-            <div style={{fontSize:13,fontWeight:600,color:"#a8640a",marginBottom:6}}>🏥 Sick Leave Details</div>
-            <div style={{fontSize:12,color:"var(--ink-muted)",marginBottom:8}}>You have <strong style={{color:"#a8640a"}}>{myC.serviceCredits||0} service credits</strong> available. Service credits are optional extra coverage for sick leave.</div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-              <Sel label="Type" value={f.lvSickType||""} onChange={v=>ff("lvSickType",v)} options={[{value:"",label:"Select..."},{value:"hospital",label:"In Hospital"},{value:"outpatient",label:"Out Patient"}]}/>
-              <Inp label="Service Credits to apply" value={f.lvSC||""} onChange={v=>ff("lvSC",v)} type="number" ph="0"/></div>
-            <Inp label="Specify Illness" value={f.lvIllness||""} onChange={v=>ff("lvIllness",v)} ph="e.g. Influenza, hypertension check-up"/></div>}
+            <div style={{fontSize:13,fontWeight:600,color:"#a8640a",marginBottom:6}}>🏥 Sick Leave — Service Credits</div>
+            <div style={{fontSize:12,color:"var(--ink-muted)",marginBottom:8}}>You have <strong style={{color:"#a8640a"}}>{myC.serviceCredits||0} service credits</strong> available. Service credits are optional extra coverage for sick leave. Pick "In Hospital" or "Out Patient" in the §6.B Checkbox Selections panel below.</div>
+            <Inp label="Service Credits to apply" value={f.lvSC||""} onChange={v=>ff("lvSC",v)} type="number" ph="0"/></div>}
           {isWellness&&<div style={{background:"#e4efe9",borderRadius:8,padding:12,marginBottom:12,border:"1px solid #1f6b4e33"}}>
             <div style={{fontSize:13,fontWeight:600,color:"#1f6b4e",marginBottom:6}}>🌿 Wellness Leave — Teacher Reliever</div>
             <div style={{fontSize:12,color:"var(--ink-muted)",marginBottom:8}}>Specify who will cover your classes during your absence.</div>
             <Sel label="Teacher Reliever (from list)" value={f.lvRelieverSel||""} onChange={v=>{ff("lvRelieverSel",v);if(v&&v!=="__other__"&&v!=="Select a teacher...")ff("lvReliever",v);}} options={["Select a teacher...",...users.filter(u=>u.role==="teacher"&&u.username!==auth.username).map(u=>u.name),"__other__"]}/>
             {(f.lvRelieverSel==="__other__"||!f.lvRelieverSel||f.lvRelieverSel==="Select a teacher...")&&<Inp label="Or type reliever name" value={f.lvReliever||""} onChange={v=>ff("lvReliever",v)} ph="Reliever's full name"/>}</div>}
           <Inp label={isOthers||f.lvType==="Special Privilege Leave"?"Reason (required)":"Details / Reason"} value={f.lvReason||""} onChange={v=>ff("lvReason",v)} ta ph="Purpose of leave, nature of illness, etc."/>
-          {/* PHASE_9B_WHEREABOUTS_RADIO - replaces free-text Whereabouts with explicit radio choice
-             that maps onto the CS Form 6 §6.B "Within the Philippines / Abroad" checkbox pair. The
-             selected value still ends up in leave.whereabouts as a single string (e.g. "Abroad: Japan"),
-             so downstream PDF/DOCX rendering and old leaves stay readable. */}
-          <div style={{marginBottom:12,padding:"10px 12px",background:"var(--n-25)",borderRadius:8,border:"1px solid var(--border)"}}>
-            <label style={{display:"block",fontSize:13,fontWeight:500,color:"#666",marginBottom:6}}>Whereabouts during leave</label>
-            <div style={{display:"flex",gap:14,flexWrap:"wrap",marginBottom:f.lvWhereType==="abroad"?8:0}}>
-              {[{v:"within",l:"Within the Philippines"},{v:"abroad",l:"Abroad"},{v:"none",l:"Not applicable"}].map(opt=>(
-                <label key={opt.v} style={{display:"flex",alignItems:"center",gap:5,cursor:"pointer",fontSize:13,color:"var(--ink)"}}>
-                  <input type="radio" name="lvWhereType" value={opt.v} checked={f.lvWhereType===opt.v} onChange={()=>{ff("lvWhereType",opt.v);if(opt.v==="within")ff("lvWhere","Within the Philippines");else if(opt.v==="none")ff("lvWhere","");else ff("lvWhere","Abroad: "+(f.lvWhereCountry||""));}}/>
-                  {opt.l}</label>))}</div>
-            {f.lvWhereType==="abroad"&&<input style={sI} placeholder="Specify country (e.g. Japan, USA)" value={f.lvWhereCountry||""} onChange={e=>{const v=e.target.value;ff("lvWhereCountry",v);ff("lvWhere","Abroad: "+v);}}/>}
+          {/* PHASE_11D_FORM6_PANEL - one consolidated panel for every CS Form 6 §6.B/§6.D checkbox
+             group. Each radio defaults to "Not applicable" so nothing gets ticked unless the user
+             explicitly picks. Phase 10/11 reads these explicit choices and injects ✓ marks into the
+             corresponding DrawingML shape, so users see exactly what will be ticked on the form. */}
+          <div style={{marginBottom:12,padding:"12px 14px",background:"#f9f7f2",borderRadius:10,border:"1px solid #e8e3d4"}}>
+            <div style={{fontSize:13,fontWeight:600,color:"var(--brand-1)",marginBottom:8,fontFamily:"var(--font-serif)",letterSpacing:"-0.01em"}}>📋 CS Form 6 — Checkbox Selections</div>
+            <div style={{fontSize:11,color:"var(--ink-muted)",marginBottom:10,fontStyle:"italic"}}>Pick which boxes to tick on the printed form. "Not applicable" leaves the box blank.</div>
+
+            {/* §6.B Whereabouts (Vacation / Special Privilege Leave) */}
+            <div style={{marginBottom:10,paddingBottom:10,borderBottom:"1px dashed #d8d0bb"}}>
+              <div style={{fontSize:12,fontWeight:600,color:"#444",marginBottom:4}}>§6.B — In case of Vacation/Special Privilege Leave (Whereabouts)</div>
+              <div style={{display:"flex",gap:14,flexWrap:"wrap",marginBottom:f.lvWhereType==="abroad"?6:0}}>
+                {[{v:"within",l:"Within the Philippines"},{v:"abroad",l:"Abroad"},{v:"none",l:"Not applicable"}].map(opt=>(
+                  <label key={opt.v} style={{display:"flex",alignItems:"center",gap:5,cursor:"pointer",fontSize:13}}>
+                    <input type="radio" name="lvWhereType" value={opt.v} checked={f.lvWhereType===opt.v} onChange={()=>{ff("lvWhereType",opt.v);if(opt.v==="within")ff("lvWhere","Within the Philippines");else if(opt.v==="none")ff("lvWhere","");else ff("lvWhere","Abroad: "+(f.lvWhereCountry||""));}}/>
+                    {opt.l}</label>))}</div>
+              {f.lvWhereType==="abroad"&&<input style={{...sI,marginTop:6}} placeholder="Specify country (e.g. Japan, USA)" value={f.lvWhereCountry||""} onChange={e=>{const v=e.target.value;ff("lvWhereCountry",v);ff("lvWhere","Abroad: "+v);}}/>}
+            </div>
+
+            {/* §6.B Sick Leave (In Hospital / Out Patient) */}
+            <div style={{marginBottom:10,paddingBottom:10,borderBottom:"1px dashed #d8d0bb"}}>
+              <div style={{fontSize:12,fontWeight:600,color:"#444",marginBottom:4}}>§6.B — In case of Sick Leave</div>
+              <div style={{display:"flex",gap:14,flexWrap:"wrap"}}>
+                {[{v:"hospital",l:"In Hospital"},{v:"outpatient",l:"Out Patient"},{v:"",l:"Not applicable"}].map(opt=>(
+                  <label key={opt.v||"none"} style={{display:"flex",alignItems:"center",gap:5,cursor:"pointer",fontSize:13}}>
+                    <input type="radio" name="lvSickType" value={opt.v} checked={(f.lvSickType||"")===opt.v} onChange={()=>ff("lvSickType",opt.v)}/>
+                    {opt.l}</label>))}</div>
+              {(f.lvSickType==="hospital"||f.lvSickType==="outpatient")&&<input style={{...sI,marginTop:6}} placeholder="Specify illness" value={f.lvIllness||""} onChange={e=>ff("lvIllness",e.target.value)}/>}
+            </div>
+
+            {/* §6.B Study Leave (Master's / BAR Review) */}
+            <div style={{marginBottom:10,paddingBottom:10,borderBottom:"1px dashed #d8d0bb"}}>
+              <div style={{fontSize:12,fontWeight:600,color:"#444",marginBottom:4}}>§6.B — In case of Study Leave</div>
+              <div style={{display:"flex",gap:14,flexWrap:"wrap"}}>
+                {[{v:"masters",l:"Completion of Master's Degree"},{v:"bar",l:"BAR/Board Examination Review"},{v:"",l:"Not applicable"}].map(opt=>(
+                  <label key={opt.v||"none"} style={{display:"flex",alignItems:"center",gap:5,cursor:"pointer",fontSize:13}}>
+                    <input type="radio" name="lvStudyType" value={opt.v} checked={(f.lvStudyType||"")===opt.v} onChange={()=>ff("lvStudyType",opt.v)}/>
+                    {opt.l}</label>))}</div>
+            </div>
+
+            {/* §6.B Other Purpose (Monetization / Terminal) */}
+            <div style={{marginBottom:10,paddingBottom:10,borderBottom:"1px dashed #d8d0bb"}}>
+              <div style={{fontSize:12,fontWeight:600,color:"#444",marginBottom:4}}>§6.B — Other purpose</div>
+              <div style={{display:"flex",gap:14,flexWrap:"wrap"}}>
+                {[{v:"monetization",l:"Monetization of Leave Credits"},{v:"terminal",l:"Terminal Leave"},{v:"",l:"Not applicable"}].map(opt=>(
+                  <label key={opt.v||"none"} style={{display:"flex",alignItems:"center",gap:5,cursor:"pointer",fontSize:13}}>
+                    <input type="radio" name="lvOtherPurpose" value={opt.v} checked={(f.lvOtherPurpose||"")===opt.v} onChange={()=>ff("lvOtherPurpose",opt.v)}/>
+                    {opt.l}</label>))}</div>
+            </div>
+
+            {/* §6.D Commutation */}
+            <div>
+              <div style={{fontSize:12,fontWeight:600,color:"#444",marginBottom:4}}>§6.D — Commutation</div>
+              <div style={{display:"flex",gap:14,flexWrap:"wrap"}}>
+                {[{v:"No",l:"Not Requested"},{v:"Requested",l:"Requested"}].map(opt=>(
+                  <label key={opt.v} style={{display:"flex",alignItems:"center",gap:5,cursor:"pointer",fontSize:13}}>
+                    <input type="radio" name="lvComm" value={opt.v} checked={(f.lvComm||"No")===opt.v} onChange={()=>ff("lvComm",opt.v)}/>
+                    {opt.l}</label>))}</div>
+            </div>
           </div>
-          <Sel label="Commutation" value={f.lvComm||"No"} onChange={v=>ff("lvComm",v)} options={["No","Requested"]}/>
           <Btn onClick={()=>{
             if(!f.lvType||f.lvType==="Select leave type..."||!f.lvStart||!f.lvEnd){alert("Please fill in leave type, start date, and end date");return;}
             if(f.lvType==="Others (Specify)"&&!f.lvOthersType?.trim()){alert("Please specify the type of leave in the 'Others' field");return;}
@@ -2261,6 +2352,7 @@ ${l.reason?`<div style="margin-top:2pt;font-size:8pt;font-style:italic;">${l.rea
               type:finalType,startDate:f.lvStart,endDate:f.lvEnd,days,reason:f.lvReason||"",
               whereabouts:f.lvWhere||"",commutable:f.lvComm||"No",
               sickType:f.lvSickType||"",illness:f.lvIllness||"",
+              studyType:f.lvStudyType||"",otherPurpose:f.lvOtherPurpose||"",
               serviceCreditsUsed:Number(f.lvSC||0),reliever:f.lvReliever||"",
               snapshotCredits:{...myC},
               status:"pending",dateFiled:now(),remarks:""},...prev]);
