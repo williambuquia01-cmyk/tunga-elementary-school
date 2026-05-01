@@ -725,34 +725,39 @@ async function buildCS6Docx_v2(leave, withSig) {
     const _mkCheck = (h, yOff) => '<a:path w="157480" h="' + h + '"><a:moveTo><a:pt x="25000" y="' + (50000 + yOff) + '"/></a:moveTo><a:lnTo><a:pt x="60000" y="' + (110000 + yOff) + '"/></a:lnTo></a:path><a:path w="157480" h="' + h + '"><a:moveTo><a:pt x="60000" y="' + (110000 + yOff) + '"/></a:moveTo><a:lnTo><a:pt x="135000" y="' + (20000 + yOff) + '"/></a:lnTo></a:path>';
     const _mkLastPath = (h, ly) => '<a:path w="157480" h="' + h + '"><a:moveTo><a:pt x="10160" y="' + ly + '"/></a:moveTo><a:lnTo><a:pt x="157479" y="' + ly + '"/></a:lnTo></a:path>';
 
-    /* PHASE_12_SEMANTIC_GUARDS (RELAXED via PHASE_13B) — explicit user choice in panel honored. */
+    /* PHASE_12_SEMANTIC_GUARDS (RELAXED via PHASE_13B, RE-TIGHTENED via PHASE_16) — Phase 13B was
+       too permissive: filing CTO with stale Within/OutPatient values from a previous form session
+       caused those boxes to tick. PHASE 16 reverts to leave-type-based guards but expands the
+       "allowed" sets so explicit user intent is honored where it makes sense:
+         • Whereabouts: Vacation, Special Privilege, Sick Leave (people can be in/out of country)
+         • Hospital/OutPatient: Sick Leave only (these labels are literally under "Sick Leave:")
+         • Master's/BAR: Study Leave only
+       For CTO/Mandatory/Adoption/etc. — none of these checkboxes apply, so they stay blank
+       even if stale data is in the leave object. */
     const _lt = leave.type || "";
-    const _isVacOrPrivilege = _lt === "Vacation Leave" || _lt === "Special Privilege Leave";
-    const _isSick           = _lt === "Sick Leave";
-    const _isStudy          = _lt === "Study Leave";
-    const _hasExplicitWhere = leave.whereabouts && leave.whereabouts.trim().length > 0;
-    const _hasExplicitSick  = leave.sickType === "hospital" || leave.sickType === "outpatient";
-    const _hasExplicitStudy = leave.studyType === "masters" || leave.studyType === "bar";
+    const _wAllowed = _lt === "Vacation Leave" || _lt === "Special Privilege Leave" || _lt === "Sick Leave";
+    const _sAllowed = _lt === "Sick Leave";
+    const _stAllowed = _lt === "Study Leave";
 
     /* A. Whereabouts — Within Philippines / Abroad (h=342900, last_y=332739) */
     const _w = (leave.whereabouts || "").toLowerCase();
     const _withinChosen = _w.startsWith("within") || (_w.includes("philippines") && !_w.startsWith("abroad"));
     const _abroadChosen = _w.startsWith("abroad");
-    if ((_isVacOrPrivilege || _hasExplicitWhere) && (_withinChosen || _abroadChosen)) {
+    if (_wAllowed && (_withinChosen || _abroadChosen)) {
       const _lp = _mkLastPath('342900', '332739');
       const _yOff = _abroadChosen ? 197484 : 10160;
       xml = xml.replace(_lp + '</a:pathLst>', _lp + _mkCheck('342900', _yOff) + '</a:pathLst>');
     }
 
     /* B. Sick leave — In Hospital / Out Patient (h=342900, last_y=333374) [PHASE 14 corrected] */
-    if ((_isSick || _hasExplicitSick) && (leave.sickType === "hospital" || leave.sickType === "outpatient")) {
+    if (_sAllowed && (leave.sickType === "hospital" || leave.sickType === "outpatient")) {
       const _lp = _mkLastPath('342900', '333374');
       const _yOff = leave.sickType === "outpatient" ? 197484 : 10160;
       xml = xml.replace(_lp + '</a:pathLst>', _lp + _mkCheck('342900', _yOff) + '</a:pathLst>');
     }
 
     /* C. Study Leave — Master's Degree / BAR Review (h=350520, last_y=340995) [PHASE 14 corrected] */
-    if ((_isStudy || _hasExplicitStudy) && (leave.studyType === "masters" || leave.studyType === "bar")) {
+    if (_stAllowed && (leave.studyType === "masters" || leave.studyType === "bar")) {
       const _lp = _mkLastPath('350520', '340995');
       const _yOff = leave.studyType === "bar" ? 197485 : 10160;
       xml = xml.replace(_lp + '</a:pathLst>', _lp + _mkCheck('350520', _yOff) + '</a:pathLst>');
@@ -2291,7 +2296,9 @@ ${l.reason?`<div style="margin-top:2pt;font-size:8pt;font-style:italic;">${l.rea
           <div style={{display:"grid",gridTemplateColumns:"2fr 1fr",gap:10}}>
             <Inp label="Position (as it should appear on CS Form 6)" value={f.lvPosition||""} onChange={v=>ff("lvPosition",v)} ph="e.g. Teacher I, Master Teacher II"/>
             <Inp label="Salary (monthly)" value={f.lvSalary||""} onChange={v=>ff("lvSalary",v)} ph="e.g. P30,024.00"/></div>
-          <Sel label="Type of Leave" value={f.lvType||""} onChange={v=>ff("lvType",v)} options={["Select leave type...",...myAvail.map(lt=>lt.v)]}/>
+          {/* PHASE_16_TYPE_CHANGE_RESET - when leave type changes, clear all the §6.B panel selections
+             so stale Within/Hospital/etc. ticks from a previous type don't carry over. */}
+          <Sel label="Type of Leave" value={f.lvType||""} onChange={v=>{ff("lvType",v);ff("lvWhereType","none");ff("lvWhere","");ff("lvWhereCountry","");ff("lvSickType","");ff("lvStudyType","");ff("lvOtherPurpose","");ff("lvIllness","");}} options={["Select leave type...",...myAvail.map(lt=>lt.v)]}/>
           {isOthers&&<div style={{background:"#f0f4f8",borderRadius:8,padding:12,marginBottom:12,border:"1px solid #0b2a5233"}}>
             <div style={{fontSize:13,fontWeight:600,color:"#0b2a52",marginBottom:6}}>📝 Others — Specify Type</div>
             <Inp label="Type of Leave (your own specification)" value={f.lvOthersType||""} onChange={v=>ff("lvOthersType",v)} ph="e.g. Filial Leave, Bereavement, etc."/></div>}
