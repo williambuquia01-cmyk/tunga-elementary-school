@@ -676,6 +676,24 @@ async function buildCS6Docx_v2(leave, withSig) {
       xml = xml.replace(_from, _to);
     });
 
+    /* PHASE_15A_NAME_LABELS_LINE2 - re-add (Last)/(First)/(Middle) labels as a SECOND visual line
+       below the names, aligned via tab stops. Phase 13A removed the inline labels because they
+       overflowed the cell on one line. Now we put them on a new line via <w:br/>, with small
+       font (sz=10) so they don't overflow either. Tab stops 7800/8800/9700 (from Phase 14B)
+       still apply, so labels land directly under Buquia/William/A. respectively.
+       Anchor uses regex to capture any middle initial (not just "A."). The pattern matches the
+       Middle name run ending with single char + period + 2 spaces, immediately followed by </w:p>. */
+    const _line2Pattern = /<w:r><w:rPr><w:spacing w:val="-2"\/><w:sz w:val="16"\/><\/w:rPr><w:t xml:space="preserve">([A-Za-z]\. {2})<\/w:t><\/w:r><\/w:p>/;
+    if (_line2Pattern.test(xml) && !xml.includes('<w:t>(Last)</w:t></w:r><w:r><w:rPr><w:sz w:val="10"/>')) {
+      xml = xml.replace(_line2Pattern,
+        '<w:r><w:rPr><w:spacing w:val="-2"/><w:sz w:val="16"/></w:rPr><w:t xml:space="preserve">$1</w:t></w:r>'
+        + '<w:r><w:rPr><w:sz w:val="16"/></w:rPr><w:br/></w:r>'
+        + '<w:r><w:rPr><w:sz w:val="10"/></w:rPr><w:tab/><w:tab/><w:tab/><w:t>(Last)</w:t></w:r>'
+        + '<w:r><w:rPr><w:sz w:val="10"/></w:rPr><w:tab/><w:t>(First)</w:t></w:r>'
+        + '<w:r><w:rPr><w:sz w:val="10"/></w:rPr><w:tab/><w:t>(Middle)</w:t></w:r></w:p>'
+      );
+    }
+
     /* B. SALARY placeholder - only when leave.salary is empty (existing line 411 inject already handles non-empty) */
     if (!leave.salary) {
       const _salaryAnchor = '<w:t>SALARY</w:t></w:r><w:r><w:rPr><w:sz w:val="16"/><w:u w:val="single"/></w:rPr><w:t xml:space="preserve"> </w:t>';
@@ -747,6 +765,22 @@ async function buildCS6Docx_v2(leave, withSig) {
       const _lp = _mkLastPath('342900', '332740');
       const _yOff = leave.otherPurpose === "terminal" ? 197484 : 10160;
       xml = xml.replace(_lp + '</a:pathLst>', _lp + _mkCheck('342900', _yOff) + '</a:pathLst>');
+    }
+    /* PHASE_15B_ILLNESS_TEXT - inject leave.illness text into the underline area next to the
+       In Hospital / Out Patient labels in §6.B. The legacy HTML/PDF generators already do this
+       (lines 1906/1907/2025/2026) but the new buildCS6Docx_v2 path was missing it.
+       The illness gets rendered as underlined text, replacing the empty <w:tab/> with text+tab. */
+    if (leave.illness && (leave.sickType === "hospital" || leave.sickType === "outpatient")) {
+      const _illEsc = xe(leave.illness);
+      if (leave.sickType === "hospital") {
+        const _hAnchor = 'In Hospital (Specify Illness) </w:t></w:r><w:r><w:rPr><w:sz w:val="16"/><w:u w:val="single"/></w:rPr><w:tab/></w:r>';
+        const _hInject = 'In Hospital (Specify Illness) </w:t></w:r><w:r><w:rPr><w:sz w:val="16"/><w:u w:val="single"/></w:rPr><w:t xml:space="preserve"> ' + _illEsc + ' </w:t><w:tab/></w:r>';
+        xml = xml.replace(_hAnchor, _hInject);
+      } else if (leave.sickType === "outpatient") {
+        const _oAnchor = ' Out Patient (Specify Illness) </w:t></w:r><w:r><w:rPr><w:sz w:val="16"/><w:u w:val="single"/></w:rPr><w:tab/></w:r>';
+        const _oInject = ' Out Patient (Specify Illness) </w:t></w:r><w:r><w:rPr><w:sz w:val="16"/><w:u w:val="single"/></w:rPr><w:t xml:space="preserve"> ' + _illEsc + ' </w:t><w:tab/></w:r>';
+        xml = xml.replace(_oAnchor, _oInject);
+      }
     }
   } catch (_e) { console.warn('Phase 10/11/12 sub-checks failed:', _e); }
 
