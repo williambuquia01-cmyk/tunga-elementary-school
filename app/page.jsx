@@ -650,6 +650,15 @@ async function buildCS6Docx_v2(leave, withSig) {
     const _officeInject = 'OFFICE/DEPARTMENT</w:t></w:r><w:r><w:rPr><w:sz w:val="16"/></w:rPr><w:tab/></w:r><w:r><w:rPr><w:sz w:val="16"/></w:rPr><w:t xml:space="preserve">Tunga Elementary School</w:t></w:r><w:r><w:rPr><w:sz w:val="16"/></w:rPr><w:tab/><w:t>2.</w:t>';
     xml = xml.replace(_officeAnchor, _officeInject);
 
+    /* PHASE_9C_NAME_ROW_TABS - the OFFICE/DEPT cell paragraph has 5 inline <w:tab/>s but only
+       4 tab-stop positions defined. The 5th tab (before "(Middle)") falls onto Word's default
+       720-twip interval, which puts "(Middle)" beyond the cell's right edge and forces the
+       whole First+Middle group to wrap to a new visual line. Fix by tightening tab4 (First
+       column) and adding an explicit tab5 just inside the cell-right edge. */
+    const _origTabs = '<w:tabs><w:tab w:val="left" w:pos="3607"/><w:tab w:val="left" w:pos="4917"/><w:tab w:val="left" w:pos="6754"/><w:tab w:val="left" w:pos="8645"/></w:tabs>';
+    const _newTabs  = '<w:tabs><w:tab w:val="left" w:pos="3607"/><w:tab w:val="left" w:pos="4917"/><w:tab w:val="left" w:pos="6754"/><w:tab w:val="left" w:pos="8200"/><w:tab w:val="left" w:pos="9450"/></w:tabs>';
+    xml = xml.replace(_origTabs, _newTabs);
+
     /* B. SALARY placeholder - only when leave.salary is empty (existing line 411 inject already handles non-empty) */
     if (!leave.salary) {
       const _salaryAnchor = '<w:t>SALARY</w:t></w:r><w:r><w:rPr><w:sz w:val="16"/><w:u w:val="single"/></w:rPr><w:t xml:space="preserve"> </w:t>';
@@ -665,6 +674,33 @@ async function buildCS6Docx_v2(leave, withSig) {
     const _comCheckPaths = '<a:path w="157480" h="343535"><a:moveTo><a:pt x="25000" y="' + (77470 + _comYOffset) + '"/></a:moveTo><a:lnTo><a:pt x="65000" y="' + (134939 + _comYOffset) + '"/></a:lnTo></a:path><a:path w="157480" h="343535"><a:moveTo><a:pt x="65000" y="' + (134939 + _comYOffset) + '"/></a:moveTo><a:lnTo><a:pt x="140000" y="' + (25000 + _comYOffset) + '"/></a:lnTo></a:path>';
     xml = xml.replace(_comLastPath + '</a:pathLst>', _comLastPath + _comCheckPaths + '</a:pathLst>');
   } catch (_e) { console.warn('Phase 6 fill-ins failed:', _e); }
+
+  /* PHASE_10_SUBCHECKS - inject DrawingML check strokes into the §6.B paired-checkbox shapes for
+     Whereabouts (Within Philippines / Abroad) and Sick Leave (In Hospital / Out Patient).
+     Each shape has a unique last-path string (different y-coord) used as the anchor.
+     Stroke geometry mirrors the leave-type pattern: down-stroke + up-stroke = ✓.
+     Top-box y-offset = +10160 (small inset from the box's top border).
+     Bottom-box y-offset = +197484 or +197485 depending on shape. */
+  try {
+    /* A. Whereabouts — Within Philippines / Abroad (shape h=342900, last-path y=333374) */
+    const _w = (leave.whereabouts || "").toLowerCase();
+    const _withinChosen = _w.startsWith("within") || _w.includes("philippines");
+    const _abroadChosen = _w.startsWith("abroad");
+    if (_withinChosen || _abroadChosen) {
+      const _waYOffset = _abroadChosen ? 197484 : 10160;
+      const _waLastPath = '<a:path w="157480" h="342900"><a:moveTo><a:pt x="10160" y="333374"/></a:moveTo><a:lnTo><a:pt x="157479" y="333374"/></a:lnTo></a:path>';
+      const _waCheckPaths = '<a:path w="157480" h="342900"><a:moveTo><a:pt x="25000" y="' + (50000 + _waYOffset) + '"/></a:moveTo><a:lnTo><a:pt x="60000" y="' + (110000 + _waYOffset) + '"/></a:lnTo></a:path><a:path w="157480" h="342900"><a:moveTo><a:pt x="60000" y="' + (110000 + _waYOffset) + '"/></a:moveTo><a:lnTo><a:pt x="135000" y="' + (20000 + _waYOffset) + '"/></a:lnTo></a:path>';
+      xml = xml.replace(_waLastPath + '</a:pathLst>', _waLastPath + _waCheckPaths + '</a:pathLst>');
+    }
+
+    /* B. Sick leave — In Hospital / Out Patient (shape h=350520, last-path y=340995) */
+    if (leave.sickType === "hospital" || leave.sickType === "outpatient") {
+      const _sYOffset = leave.sickType === "outpatient" ? 197485 : 10160;
+      const _sLastPath = '<a:path w="157480" h="350520"><a:moveTo><a:pt x="10160" y="340995"/></a:moveTo><a:lnTo><a:pt x="157479" y="340995"/></a:lnTo></a:path>';
+      const _sCheckPaths = '<a:path w="157480" h="350520"><a:moveTo><a:pt x="25000" y="' + (50000 + _sYOffset) + '"/></a:moveTo><a:lnTo><a:pt x="60000" y="' + (110000 + _sYOffset) + '"/></a:lnTo></a:path><a:path w="157480" h="350520"><a:moveTo><a:pt x="60000" y="' + (110000 + _sYOffset) + '"/></a:moveTo><a:lnTo><a:pt x="135000" y="' + (20000 + _sYOffset) + '"/></a:lnTo></a:path>';
+      xml = xml.replace(_sLastPath + '</a:pathLst>', _sLastPath + _sCheckPaths + '</a:pathLst>');
+    }
+  } catch (_e) { console.warn('Phase 10 sub-checks failed:', _e); }
 
   /* PHASE_8_LONGBOND - resize page to 8.5x13 long bond paper (Philippine Folio) */
   /* Original template: w=11930 h=16850 (8.28in x 11.7in) - too narrow, causes name field to wrap */
