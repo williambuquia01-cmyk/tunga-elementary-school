@@ -650,14 +650,19 @@ async function buildCS6Docx_v2(leave, withSig) {
     const _officeInject = 'OFFICE/DEPARTMENT</w:t></w:r><w:r><w:rPr><w:sz w:val="16"/></w:rPr><w:tab/></w:r><w:r><w:rPr><w:sz w:val="16"/></w:rPr><w:t xml:space="preserve">Tunga Elementary School</w:t></w:r><w:r><w:rPr><w:sz w:val="16"/></w:rPr><w:tab/><w:t>2.</w:t>';
     xml = xml.replace(_officeAnchor, _officeInject);
 
-    /* PHASE_9C_NAME_ROW_TABS - the OFFICE/DEPT cell paragraph has 5 inline <w:tab/>s but only
-       4 tab-stop positions defined. The 5th tab (before "(Middle)") falls onto Word's default
-       720-twip interval, which puts "(Middle)" beyond the cell's right edge and forces the
-       whole First+Middle group to wrap to a new visual line. Fix by tightening tab4 (First
-       column) and adding an explicit tab5 just inside the cell-right edge. */
+    /* PHASE_9C_NAME_ROW_TABS (UPGRADED via PHASE_14B) — 5 inline <w:tab/>s with 5 stops worked
+       fine for tabs 1-4 but the 5th tab landed too close to cell-right edge, wrapping "A.". The
+       stop at pos=4917 was always overrun by the school name (which ends ~6137 twips), so it was
+       wasted. PHASE 14B drops 4917 and redistributes: 3607/6754/7800/8800/9700. Now the 5th tab
+       lands at 9700, leaving "A.  " 522 twips of room before cell-right edge at 10222 — fits
+       comfortably. Note: with annotations removed (Phase 13A), name segments are short so even
+       tighter columns are OK. */
     const _origTabs = '<w:tabs><w:tab w:val="left" w:pos="3607"/><w:tab w:val="left" w:pos="4917"/><w:tab w:val="left" w:pos="6754"/><w:tab w:val="left" w:pos="8645"/></w:tabs>';
-    const _newTabs  = '<w:tabs><w:tab w:val="left" w:pos="3607"/><w:tab w:val="left" w:pos="4917"/><w:tab w:val="left" w:pos="6754"/><w:tab w:val="left" w:pos="8200"/><w:tab w:val="left" w:pos="9450"/></w:tabs>';
+    const _newTabs  = '<w:tabs><w:tab w:val="left" w:pos="3607"/><w:tab w:val="left" w:pos="6754"/><w:tab w:val="left" w:pos="7800"/><w:tab w:val="left" w:pos="8800"/><w:tab w:val="left" w:pos="9700"/></w:tabs>';
     xml = xml.replace(_origTabs, _newTabs);
+    /* Idempotency: also handle the post-Phase 9C state if patch is rerun on already-patched XML */
+    const _phase9cTabs = '<w:tabs><w:tab w:val="left" w:pos="3607"/><w:tab w:val="left" w:pos="4917"/><w:tab w:val="left" w:pos="6754"/><w:tab w:val="left" w:pos="8200"/><w:tab w:val="left" w:pos="9450"/></w:tabs>';
+    xml = xml.replace(_phase9cTabs, _newTabs);
 
     /* PHASE_13A_NAME_ANNOT_REMOVE - Phase 11A's sz=14→sz=12 shrink wasn't enough either. The arithmetic
        still overflows the First column (1500 needed, 1250 available) and the Middle column (1040 needed,
@@ -687,33 +692,26 @@ async function buildCS6Docx_v2(leave, withSig) {
     xml = xml.replace(_comLastPath + '</a:pathLst>', _comLastPath + _comCheckPaths + '</a:pathLst>');
   } catch (_e) { console.warn('Phase 6 fill-ins failed:', _e); }
 
-  /* PHASE_10_SUBCHECKS (CORRECTED via PHASE_11, GUARDED via PHASE_12) - inject DrawingML check
-     strokes into the §6.B paired-checkbox shapes. Phase 12 adds semantic-consistency guards: each
-     checkbox group only ticks when the leave's type semantically matches that section, defending
-     against stale data from pre-Phase 11 leaves where lvSickType/etc. could persist on unrelated
-     leave types. Anchor map:
-       Within/Abroad shape         h=342900 last_y=332739
-       Master's/BAR shape          h=342900 last_y=333374
-       Hospital/OutPatient shape   h=350520 last_y=340995
-       Monetization/Terminal shape h=342900 last_y=332740
+  /* PHASE_10_SUBCHECKS (CORRECTED via PHASE_11/13/14, GUARDED via PHASE_12/13B) - inject DrawingML
+     check strokes into the §6.B paired-checkbox shapes. The anchor map went through several wrong
+     iterations before being verified by rendering the docx and tracing each shape's anchor
+     paragraph + posV offset. PHASE 14 fixes the previously SWAPPED Hospital/Master anchors:
+       Within/Abroad shape         h=342900 last_y=332739  (anchor: Vacation/Privilege paragraph)
+       Hospital/OutPatient shape   h=342900 last_y=333374  (anchor: Sick Leave paragraph) ← swapped
+       Master's/BAR shape          h=350520 last_y=340995  (anchor: empty before Study)         ← swapped
+       Monetization/Terminal shape h=342900 last_y=332740  (anchor: Monetization paragraph)
        (6.D Commutation             h=343535 last_y=333374 — handled in Phase 6)
-     Top-box y-offset = +10160; Bottom-box y-offset = +197484/+197485. */
+     Top-box y-offset = +10160; Bottom-box y-offset varies (197484 for h=342900, 197485 for h=350520). */
   try {
     /* Helper to build the ✓ stroke pair for any shape */
     const _mkCheck = (h, yOff) => '<a:path w="157480" h="' + h + '"><a:moveTo><a:pt x="25000" y="' + (50000 + yOff) + '"/></a:moveTo><a:lnTo><a:pt x="60000" y="' + (110000 + yOff) + '"/></a:lnTo></a:path><a:path w="157480" h="' + h + '"><a:moveTo><a:pt x="60000" y="' + (110000 + yOff) + '"/></a:moveTo><a:lnTo><a:pt x="135000" y="' + (20000 + yOff) + '"/></a:lnTo></a:path>';
     const _mkLastPath = (h, ly) => '<a:path w="157480" h="' + h + '"><a:moveTo><a:pt x="10160" y="' + ly + '"/></a:moveTo><a:lnTo><a:pt x="157479" y="' + ly + '"/></a:lnTo></a:path>';
 
-    /* PHASE_12_SEMANTIC_GUARDS (RELAXED via PHASE_13B) — original goal was to defend against stale
-       data from pre-Phase 11 leaves where lvSickType/whereabouts could persist on unrelated leave
-       types. But since Phase 11 added explicit "Not applicable" defaults in the modal, any non-empty
-       value in the new schema represents a deliberate user choice that should be honored regardless
-       of leave type (e.g. user files Sick Leave with Within-Philippines whereabouts). Guards now
-       defer to explicit choices. */
+    /* PHASE_12_SEMANTIC_GUARDS (RELAXED via PHASE_13B) — explicit user choice in panel honored. */
     const _lt = leave.type || "";
     const _isVacOrPrivilege = _lt === "Vacation Leave" || _lt === "Special Privilege Leave";
     const _isSick           = _lt === "Sick Leave";
     const _isStudy          = _lt === "Study Leave";
-    /* explicit-choice flags: true if the leave was filed/edited under Phase 11+ schema (panel selected) */
     const _hasExplicitWhere = leave.whereabouts && leave.whereabouts.trim().length > 0;
     const _hasExplicitSick  = leave.sickType === "hospital" || leave.sickType === "outpatient";
     const _hasExplicitStudy = leave.studyType === "masters" || leave.studyType === "bar";
@@ -728,18 +726,18 @@ async function buildCS6Docx_v2(leave, withSig) {
       xml = xml.replace(_lp + '</a:pathLst>', _lp + _mkCheck('342900', _yOff) + '</a:pathLst>');
     }
 
-    /* B. Sick leave — In Hospital / Out Patient (h=350520, last_y=340995) */
+    /* B. Sick leave — In Hospital / Out Patient (h=342900, last_y=333374) [PHASE 14 corrected] */
     if ((_isSick || _hasExplicitSick) && (leave.sickType === "hospital" || leave.sickType === "outpatient")) {
-      const _lp = _mkLastPath('350520', '340995');
-      const _yOff = leave.sickType === "outpatient" ? 197485 : 10160;
-      xml = xml.replace(_lp + '</a:pathLst>', _lp + _mkCheck('350520', _yOff) + '</a:pathLst>');
+      const _lp = _mkLastPath('342900', '333374');
+      const _yOff = leave.sickType === "outpatient" ? 197484 : 10160;
+      xml = xml.replace(_lp + '</a:pathLst>', _lp + _mkCheck('342900', _yOff) + '</a:pathLst>');
     }
 
-    /* C. Study Leave — Master's Degree / BAR Review (h=342900, last_y=333374) */
+    /* C. Study Leave — Master's Degree / BAR Review (h=350520, last_y=340995) [PHASE 14 corrected] */
     if ((_isStudy || _hasExplicitStudy) && (leave.studyType === "masters" || leave.studyType === "bar")) {
-      const _lp = _mkLastPath('342900', '333374');
-      const _yOff = leave.studyType === "bar" ? 197484 : 10160;
-      xml = xml.replace(_lp + '</a:pathLst>', _lp + _mkCheck('342900', _yOff) + '</a:pathLst>');
+      const _lp = _mkLastPath('350520', '340995');
+      const _yOff = leave.studyType === "bar" ? 197485 : 10160;
+      xml = xml.replace(_lp + '</a:pathLst>', _lp + _mkCheck('350520', _yOff) + '</a:pathLst>');
     }
 
     /* D. Other Purpose — Monetization / Terminal (h=342900, last_y=332740)
