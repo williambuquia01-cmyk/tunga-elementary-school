@@ -659,22 +659,17 @@ async function buildCS6Docx_v2(leave, withSig) {
     const _newTabs  = '<w:tabs><w:tab w:val="left" w:pos="3607"/><w:tab w:val="left" w:pos="4917"/><w:tab w:val="left" w:pos="6754"/><w:tab w:val="left" w:pos="8200"/><w:tab w:val="left" w:pos="9450"/></w:tabs>';
     xml = xml.replace(_origTabs, _newTabs);
 
-    /* PHASE_11A_NAME_ANNOT_SHRINK - Phase 9C alone wasn't enough: "(First)" still wrapped because
-       the First column (8200 -> 9450 = 1250 twips) couldn't fit "William  " + "(First)" at sz=16/sz=14.
-       Shrink the three annotation labels (Last)/(First)/(Middle) from sz=14 (7pt) to sz=12 (6pt) to
-       reclaim ~15% horizontal width per annotation. Combined with Phase 9C, every name segment now fits. */
-    xml = xml.replace(
-      '<w:rPr><w:sz w:val="14"/></w:rPr><w:t>(Last)</w:t>',
-      '<w:rPr><w:sz w:val="12"/></w:rPr><w:t>(Last)</w:t>'
-    );
-    xml = xml.replace(
-      '<w:rPr><w:sz w:val="14"/></w:rPr><w:t>(First)</w:t>',
-      '<w:rPr><w:sz w:val="12"/></w:rPr><w:t>(First)</w:t>'
-    );
-    xml = xml.replace(
-      '<w:rPr><w:sz w:val="14"/></w:rPr><w:t>(Middle)</w:t>',
-      '<w:rPr><w:sz w:val="12"/></w:rPr><w:t>(Middle)</w:t>'
-    );
+    /* PHASE_13A_NAME_ANNOT_REMOVE - Phase 11A's sz=14→sz=12 shrink wasn't enough either. The arithmetic
+       still overflows the First column (1500 needed, 1250 available) and the Middle column (1040 needed,
+       772 available). The cell width is fundamentally too narrow to fit "Last+(Last) First+(First) Middle+(Middle)"
+       in one line. Solution: drop the (Last)/(First)/(Middle) annotations entirely. The name sequence
+       "Buquia William A." is self-explanatory. Match either old (sz=14) or post-Phase 11A (sz=12) source
+       so the patch is idempotent across redeploys. */
+    [['14','(Last)'], ['12','(Last)'], ['14','(First)'], ['12','(First)'], ['14','(Middle)'], ['12','(Middle)']].forEach(([sz, lbl]) => {
+      const _from = '<w:r><w:rPr><w:sz w:val="' + sz + '"/></w:rPr><w:t>' + lbl + '</w:t></w:r>';
+      const _to   = ''; /* drop the entire run */
+      xml = xml.replace(_from, _to);
+    });
 
     /* B. SALARY placeholder - only when leave.salary is empty (existing line 411 inject already handles non-empty) */
     if (!leave.salary) {
@@ -708,33 +703,40 @@ async function buildCS6Docx_v2(leave, withSig) {
     const _mkCheck = (h, yOff) => '<a:path w="157480" h="' + h + '"><a:moveTo><a:pt x="25000" y="' + (50000 + yOff) + '"/></a:moveTo><a:lnTo><a:pt x="60000" y="' + (110000 + yOff) + '"/></a:lnTo></a:path><a:path w="157480" h="' + h + '"><a:moveTo><a:pt x="60000" y="' + (110000 + yOff) + '"/></a:moveTo><a:lnTo><a:pt x="135000" y="' + (20000 + yOff) + '"/></a:lnTo></a:path>';
     const _mkLastPath = (h, ly) => '<a:path w="157480" h="' + h + '"><a:moveTo><a:pt x="10160" y="' + ly + '"/></a:moveTo><a:lnTo><a:pt x="157479" y="' + ly + '"/></a:lnTo></a:path>';
 
-    /* PHASE_12_SEMANTIC_GUARDS - each Boolean below is true only when the leave's type matches the
-       checkbox section. Without these guards, a leave saved with stale sickType/whereabouts/etc.
-       in storage would tick boxes that don't apply to its actual leave type. */
+    /* PHASE_12_SEMANTIC_GUARDS (RELAXED via PHASE_13B) — original goal was to defend against stale
+       data from pre-Phase 11 leaves where lvSickType/whereabouts could persist on unrelated leave
+       types. But since Phase 11 added explicit "Not applicable" defaults in the modal, any non-empty
+       value in the new schema represents a deliberate user choice that should be honored regardless
+       of leave type (e.g. user files Sick Leave with Within-Philippines whereabouts). Guards now
+       defer to explicit choices. */
     const _lt = leave.type || "";
     const _isVacOrPrivilege = _lt === "Vacation Leave" || _lt === "Special Privilege Leave";
     const _isSick           = _lt === "Sick Leave";
     const _isStudy          = _lt === "Study Leave";
+    /* explicit-choice flags: true if the leave was filed/edited under Phase 11+ schema (panel selected) */
+    const _hasExplicitWhere = leave.whereabouts && leave.whereabouts.trim().length > 0;
+    const _hasExplicitSick  = leave.sickType === "hospital" || leave.sickType === "outpatient";
+    const _hasExplicitStudy = leave.studyType === "masters" || leave.studyType === "bar";
 
     /* A. Whereabouts — Within Philippines / Abroad (h=342900, last_y=332739) */
     const _w = (leave.whereabouts || "").toLowerCase();
     const _withinChosen = _w.startsWith("within") || (_w.includes("philippines") && !_w.startsWith("abroad"));
     const _abroadChosen = _w.startsWith("abroad");
-    if (_isVacOrPrivilege && (_withinChosen || _abroadChosen)) {
+    if ((_isVacOrPrivilege || _hasExplicitWhere) && (_withinChosen || _abroadChosen)) {
       const _lp = _mkLastPath('342900', '332739');
       const _yOff = _abroadChosen ? 197484 : 10160;
       xml = xml.replace(_lp + '</a:pathLst>', _lp + _mkCheck('342900', _yOff) + '</a:pathLst>');
     }
 
     /* B. Sick leave — In Hospital / Out Patient (h=350520, last_y=340995) */
-    if (_isSick && (leave.sickType === "hospital" || leave.sickType === "outpatient")) {
+    if ((_isSick || _hasExplicitSick) && (leave.sickType === "hospital" || leave.sickType === "outpatient")) {
       const _lp = _mkLastPath('350520', '340995');
       const _yOff = leave.sickType === "outpatient" ? 197485 : 10160;
       xml = xml.replace(_lp + '</a:pathLst>', _lp + _mkCheck('350520', _yOff) + '</a:pathLst>');
     }
 
     /* C. Study Leave — Master's Degree / BAR Review (h=342900, last_y=333374) */
-    if (_isStudy && (leave.studyType === "masters" || leave.studyType === "bar")) {
+    if ((_isStudy || _hasExplicitStudy) && (leave.studyType === "masters" || leave.studyType === "bar")) {
       const _lp = _mkLastPath('342900', '333374');
       const _yOff = leave.studyType === "bar" ? 197484 : 10160;
       xml = xml.replace(_lp + '</a:pathLst>', _lp + _mkCheck('342900', _yOff) + '</a:pathLst>');
