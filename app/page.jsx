@@ -1978,7 +1978,7 @@ td{border:0.75pt solid #000;padding:3pt 5pt;vertical-align:top;font-size:8.5pt;l
 <span class="chk-row"><span class="chk">${l.otherPurpose==="terminal"?chk:unc}</span> Terminal Leave</span>
 ${l.reliever?`<div style="margin-top:3pt;font-size:8pt;"><b>Teacher Reliever:</b> ${l.reliever}</div>`:""}
 ${l.serviceCreditsUsed>0?`<div style="font-size:8pt;"><b>Service Credits Applied:</b> ${l.serviceCreditsUsed} day(s)</div>`:""}
-${l.reason?`<div style="margin-top:2pt;font-size:8pt;font-style:italic;">${l.reason}</div>`:""}</td></tr>
+${l.reason?`<div style="margin-top:6pt;font-size:8pt;"><b>Reason:</b> <span style="font-style:italic;">${l.reason}</span></div>`:""}</td></tr>
 <tr><td style="padding:4pt 5pt;"><span class="num">6.C NUMBER OF WORKING DAYS APPLIED FOR</span><br/><span style="font-size:10pt;font-weight:bold;padding-left:14pt;">${l.days}</span>
 <br/><span class="num" style="margin-top:4pt;display:inline-block;">INCLUSIVE DATES</span><br/><span style="padding-left:14pt;font-size:8.5pt;">${l.startDate} to ${l.endDate}</span></td>
 <td style="padding:4pt 5pt;"><span class="num">6.D COMMUTATION</span>
@@ -2095,7 +2095,7 @@ td{border:0.75pt solid #000;padding:3pt 5pt;vertical-align:top;font-size:8.5pt;}
 <div class="chk-row">${l.otherPurpose==="terminal"?chk:unc} Terminal Leave</div>
 ${l.reliever?`<div style="margin-top:3pt;font-size:8pt;"><b>Teacher Reliever:</b> ${l.reliever}</div>`:""}
 ${l.serviceCreditsUsed>0?`<div style="font-size:8pt;"><b>Service Credits Applied:</b> ${l.serviceCreditsUsed} day(s)</div>`:""}
-${l.reason?`<div style="margin-top:2pt;font-size:8pt;font-style:italic;">${l.reason}</div>`:""}</td></tr>
+${l.reason?`<div style="margin-top:6pt;font-size:8pt;"><b>Reason:</b> <span style="font-style:italic;">${l.reason}</span></div>`:""}</td></tr>
 <tr><td><b>6.C NUMBER OF WORKING DAYS APPLIED FOR</b><br/>&nbsp;&nbsp;<b style="font-size:10pt;">${l.days}</b>
 <br/><b>INCLUSIVE DATES</b><br/>&nbsp;&nbsp;${l.startDate} to ${l.endDate}</td>
 <td><b>6.D COMMUTATION</b>
@@ -2195,24 +2195,29 @@ ${l.reason?`<div style="margin-top:2pt;font-size:8pt;font-style:italic;">${l.rea
               <Btn sm color="#1f6b4e" onClick={()=>{ff("lvRemarks","");ff("lvSig","yes");setModal(`lvA_${l.id}`);}}>{IC.check} Approve</Btn>
               <Btn sm color="#a2321a" outline onClick={()=>{ff("lvRemarks","");setModal(`lvD_${l.id}`);}}>Decline</Btn></>}
             {(l.status==="approved"||l.status==="completed"||l.status==="declined")&&<>
+              {/* PHASE_21_KEEP_ALL_BUTTONS - all 4 legacy export buttons (printCS6, downloadCS6Docx)
+                 and the new DOCX button kept side-by-side. After Phase 17 (school name fix +
+                 semantic guards in legacy HTML) and Phase 20 (relaxed guards to honor user's
+                 explicit panel choice), both legacy paths now produce equivalent output to the
+                 new buildCS6Docx_v2 path. PDF buttons render via browser print dialog;
+                 .doc button downloads Word-HTML; NEW DOCX button generates a true .docx file. */}
               <Btn sm color="#0b2a52" onClick={()=>printCS6(l,true)}>{IC.download} PDF (with sig)</Btn>
               <Btn sm color="#0b2a52" outline onClick={()=>printCS6(l,false)}>PDF (blank sig)</Btn>
               <Btn sm color="#1f6b4e" onClick={()=>downloadCS6Docx(l,true)}>{IC.download} DOCX (with sig)</Btn>
               <Btn sm color="#1f6b4e" outline onClick={()=>downloadCS6Docx(l,false)}>DOCX (blank sig)</Btn>
-              <Btn sm color="#a8640a" outline onClick={async()=>{
+              <Btn sm color="#a8640a" onClick={async()=>{
                 try{
-                  // If snapshotCredits is empty but the user has live credits, use them
                   const u=users.find(x=>x.username===l.username);
                   const liveCredits=u?.credits||{};
                   const hasLive=liveCredits.vacationLeave||liveCredits.sickLeave;
                   const lWithCredits=(l.snapshotCredits&&(l.snapshotCredits.vacationLeave||l.snapshotCredits.sickLeave))?l:{...l,snapshotCredits:hasLive?liveCredits:l.snapshotCredits||{}};
                   const blob=await buildCS6Docx_v2(lWithCredits,true);
                   const url=URL.createObjectURL(blob);
-                  const a=document.createElement("a");a.href=url;a.download=`CS-Form-6_NEW_${l.requester.replace(/[^a-zA-Z0-9]/g,"_")}_${l.dateFiled}.docx`;
+                  const a=document.createElement("a");a.href=url;a.download=`CS-Form-6_${l.requester.replace(/[^a-zA-Z0-9]/g,"_")}_${l.dateFiled}.docx`;
                   document.body.appendChild(a);a.click();document.body.removeChild(a);
                   setTimeout(()=>URL.revokeObjectURL(url),1000);
                 }catch(e){alert("DOCX generation failed: "+e.message);console.error(e);}
-              }}>🧪 NEW DOCX (test)</Btn></>}
+              }}>{IC.download} DOCX (new)</Btn></>}
             {(isAdmin||(l.status==="pending"&&l.username===auth.username))&&<button onClick={()=>deleteLeave(l.id)} style={{background:"none",border:"none",cursor:"pointer",color:"var(--ink-faint)"}}>{IC.trash}</button>}</div></div></div>)}</>);};
 
   /* ═══ RENDER ═══ */
