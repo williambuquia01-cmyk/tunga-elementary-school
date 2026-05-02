@@ -664,6 +664,15 @@ async function buildCS6Docx_v2(leave, withSig) {
     const _phase9cTabs = '<w:tabs><w:tab w:val="left" w:pos="3607"/><w:tab w:val="left" w:pos="4917"/><w:tab w:val="left" w:pos="6754"/><w:tab w:val="left" w:pos="8200"/><w:tab w:val="left" w:pos="9450"/></w:tabs>';
     xml = xml.replace(_phase9cTabs, _newTabs);
 
+    /* PHASE_18B_ROW3_TABS - row 3 (DATE OF FILING / POSITION / SALARY) had tab stops at
+       2981/3640/7460/10017. The first stop 2981 lands too close to the end of "DATE OF FILING [date]"
+       (~2010 twips), causing "4. POSITION" to start at twip 2981 with only ~970 twips of buffer
+       — visually overlapping the date's underline. Dropping stop 2981 forces tab #1 to land at
+       3640 instead, giving a clean gap. Other stops unchanged. */
+    const _row3Tabs = '<w:tabs><w:tab w:val="left" w:pos="2981"/><w:tab w:val="left" w:pos="3640"/><w:tab w:val="left" w:pos="7460"/><w:tab w:val="left" w:pos="10017"/></w:tabs>';
+    const _row3New  = '<w:tabs><w:tab w:val="left" w:pos="3700"/><w:tab w:val="left" w:pos="7460"/><w:tab w:val="left" w:pos="10017"/></w:tabs>';
+    xml = xml.replace(_row3Tabs, _row3New);
+
     /* PHASE_13A_NAME_ANNOT_REMOVE - Phase 11A's sz=14→sz=12 shrink wasn't enough either. The arithmetic
        still overflows the First column (1500 needed, 1250 available) and the Middle column (1040 needed,
        772 available). The cell width is fundamentally too narrow to fit "Last+(Last) First+(First) Middle+(Middle)"
@@ -771,11 +780,10 @@ async function buildCS6Docx_v2(leave, withSig) {
       const _yOff = leave.otherPurpose === "terminal" ? 197484 : 10160;
       xml = xml.replace(_lp + '</a:pathLst>', _lp + _mkCheck('342900', _yOff) + '</a:pathLst>');
     }
-    /* PHASE_15B_ILLNESS_TEXT - inject leave.illness text into the underline area next to the
-       In Hospital / Out Patient labels in §6.B. The legacy HTML/PDF generators already do this
-       (lines 1906/1907/2025/2026) but the new buildCS6Docx_v2 path was missing it.
-       The illness gets rendered as underlined text, replacing the empty <w:tab/> with text+tab. */
-    if (leave.illness && (leave.sickType === "hospital" || leave.sickType === "outpatient")) {
+    /* PHASE_15B_ILLNESS_TEXT (GUARDED via PHASE_18A) - inject leave.illness text into the underline
+       area next to the In Hospital / Out Patient labels in §6.B. PHASE 18A adds the same _sAllowed
+       guard that Phase 16 uses on the checkbox tick — no point writing illness text on a CTO form. */
+    if (_sAllowed && leave.illness && (leave.sickType === "hospital" || leave.sickType === "outpatient")) {
       const _illEsc = xe(leave.illness);
       if (leave.sickType === "hospital") {
         const _hAnchor = 'In Hospital (Specify Illness) </w:t></w:r><w:r><w:rPr><w:sz w:val="16"/><w:u w:val="single"/></w:rPr><w:tab/></w:r>';
