@@ -383,6 +383,20 @@ async function buildCS6Docx_v2(leave, withSig) {
   // We inject the value text INTO the spacing-run that comes between label and tab,
   // keeping the tab structure intact so the underline geometry stays right.
 
+  /* PHASE_19_STRIP_TEXTBOX23 - the original CSC Form 6 template has 5 floating "Text Box 23"
+     drawings positioned over row 3 (DATE OF FILING / POSITION / SALARY) and other rows. They
+     are empty white-filled rectangles intended as fillable form fields, but Word renders them
+     ON TOP OF any text in the underlying paragraph. Phase 18B's tab redistribution pulled
+     "Principal I" under one of these boxes, so the box's white fill obscured "cipal I",
+     making POSITION look like "Princ" with a long underline. Solution: strip every Text Box
+     drawing wrapped in <w:r>...<mc:AlternateContent>...Text Box NN...</mc:AlternateContent></w:r>. */
+  try {
+    xml = xml.replace(
+      /<w:r>\s*<w:rPr>[^<]*<w:noProof\/>[^<]*<w:position[^/]*\/>[^<]*<w:sz[^/]*\/>\s*<\/w:rPr>\s*<mc:AlternateContent>(?:(?!<\/mc:AlternateContent>).)*?Text Box \d+(?:(?!<\/mc:AlternateContent>).)*?<\/mc:AlternateContent>\s*<\/w:r>/gs,
+      ''
+    );
+  } catch (_e) { console.warn('Phase 19 textbox strip failed:', _e); }
+
   // DATE OF FILING — include trailing tabs to clear out baseline-2 artifacts.
   // Original structure: label + spacing-run + underline-tab(pos2) + plain-tab(pos2)
   // We replace ALL of that with: label + value-with-underline + plain-tab (clean baseline)
