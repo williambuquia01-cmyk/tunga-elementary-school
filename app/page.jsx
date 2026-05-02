@@ -1908,7 +1908,7 @@ td{border:0.75pt solid #000;padding:3pt 5pt;vertical-align:top;font-size:8.5pt;l
 <div class="title">APPLICATION FOR LEAVE</div>
 
 <table>
-<tr class="row1"><td style="width:44%;"><span class="num">1. OFFICE/DEPARTMENT</span><br/><span style="font-size:9pt;">Tunga Elementary School, Moalboal District</span></td>
+<tr class="row1"><td style="width:44%;"><span class="num">1. OFFICE/DEPARTMENT</span><br/><span style="font-size:9pt;">Tunga Elementary School</span></td>
 <td style="width:56%;"><span class="num">2. NAME:</span>
 <table style="border:none;margin-top:3pt;"><tr>
 <td style="border:none;border-bottom:0.5pt solid #000;width:34%;padding:1pt 4pt;font-size:9pt;">${last}</td>
@@ -1939,19 +1939,19 @@ td{border:0.75pt solid #000;padding:3pt 5pt;vertical-align:top;font-size:8.5pt;l
 <span class="chk-row italic" style="margin-top:2pt;">Others: <span class="underline" style="min-width:1.4in;">${(is("Wellness")||is("CTO")||is("Mental Health")||is("Service Credits")||is("Others"))?l.type.replace(/^Others:\s*/,"").replace(" (Others)",""):""}</span></span></td>
 <td style="width:50%;padding:4pt 5pt;"><span class="tl-label">6.B DETAILS OF LEAVE</span>
 <div class="detail-label">In case of Vacation/Special Privilege Leave:</div>
-<span class="chk-row"><span class="chk">${l.whereabouts?.toLowerCase().includes("phil")?chk:unc}</span> Within the Philippines <span class="underline" style="min-width:1.2in;"></span></span>
-<span class="chk-row"><span class="chk">${l.whereabouts?.toLowerCase().includes("abroad")?chk:unc}</span> Abroad <span class="italic">(Specify)</span> <span class="underline" style="min-width:1.1in;">${l.whereabouts?.toLowerCase().includes("abroad")?l.whereabouts.replace(/abroad/i,"").trim():""}</span></span>
+<span class="chk-row"><span class="chk">${(l.type==="Vacation Leave"||l.type==="Special Privilege Leave"||l.type==="Sick Leave")&&l.whereabouts?.toLowerCase().includes("phil")&&!l.whereabouts?.toLowerCase().startsWith("abroad")?chk:unc}</span> Within the Philippines <span class="underline" style="min-width:1.2in;"></span></span>
+<span class="chk-row"><span class="chk">${(l.type==="Vacation Leave"||l.type==="Special Privilege Leave"||l.type==="Sick Leave")&&l.whereabouts?.toLowerCase().startsWith("abroad")?chk:unc}</span> Abroad <span class="italic">(Specify)</span> <span class="underline" style="min-width:1.1in;">${l.whereabouts?.toLowerCase().startsWith("abroad")?l.whereabouts.replace(/^abroad:?\s*/i,"").trim():""}</span></span>
 <div class="detail-label">In case of Sick Leave:</div>
-<span class="chk-row"><span class="chk">${l.sickType==="hospital"?chk:unc}</span> In Hospital <span class="italic">(Specify Illness)</span> <span class="underline" style="min-width:1.0in;">${l.sickType==="hospital"?(l.illness||""):""}</span></span>
-<span class="chk-row"><span class="chk">${l.sickType==="outpatient"?chk:unc}</span> Out Patient <span class="italic">(Specify Illness)</span> <span class="underline" style="min-width:1.0in;">${l.sickType==="outpatient"?(l.illness||""):""}</span></span>
+<span class="chk-row"><span class="chk">${l.type==="Sick Leave"&&l.sickType==="hospital"?chk:unc}</span> In Hospital <span class="italic">(Specify Illness)</span> <span class="underline" style="min-width:1.0in;">${l.type==="Sick Leave"&&l.sickType==="hospital"?(l.illness||""):""}</span></span>
+<span class="chk-row"><span class="chk">${l.type==="Sick Leave"&&l.sickType==="outpatient"?chk:unc}</span> Out Patient <span class="italic">(Specify Illness)</span> <span class="underline" style="min-width:1.0in;">${l.type==="Sick Leave"&&l.sickType==="outpatient"?(l.illness||""):""}</span></span>
 <div class="detail-label">In case of Special Leave Benefits for Women:</div>
 <span class="chk-row">(Specify Illness) <span class="underline" style="min-width:1.8in;"></span></span>
 <div class="detail-label">In case of Study Leave:</div>
-<span class="chk-row"><span class="chk">${unc}</span> Completion of Master's Degree</span>
-<span class="chk-row"><span class="chk">${unc}</span> BAR/Board Examination Review</span>
+<span class="chk-row"><span class="chk">${l.type==="Study Leave"&&l.studyType==="masters"?chk:unc}</span> Completion of Master's Degree</span>
+<span class="chk-row"><span class="chk">${l.type==="Study Leave"&&l.studyType==="bar"?chk:unc}</span> BAR/Board Examination Review</span>
 <div class="detail-label">Other purpose:</div>
-<span class="chk-row"><span class="chk">${unc}</span> Monetization of Leave Credits</span>
-<span class="chk-row"><span class="chk">${unc}</span> Terminal Leave</span>
+<span class="chk-row"><span class="chk">${l.otherPurpose==="monetization"?chk:unc}</span> Monetization of Leave Credits</span>
+<span class="chk-row"><span class="chk">${l.otherPurpose==="terminal"?chk:unc}</span> Terminal Leave</span>
 ${l.reliever?`<div style="margin-top:3pt;font-size:8pt;"><b>Teacher Reliever:</b> ${l.reliever}</div>`:""}
 ${l.serviceCreditsUsed>0?`<div style="font-size:8pt;"><b>Service Credits Applied:</b> ${l.serviceCreditsUsed} day(s)</div>`:""}
 ${l.reason?`<div style="margin-top:2pt;font-size:8pt;font-style:italic;">${l.reason}</div>`:""}</td></tr>
@@ -2032,7 +2032,7 @@ td{border:0.75pt solid #000;padding:3pt 5pt;vertical-align:top;font-size:8.5pt;}
 <div style="text-align:center;font-size:14pt;font-weight:bold;margin:8pt 0 4pt;">APPLICATION FOR LEAVE</div>
 
 <table>
-<tr><td style="width:44%;"><b style="font-size:8pt;">1. OFFICE/DEPARTMENT</b><br/>Tunga Elementary School, Moalboal District</td>
+<tr><td style="width:44%;"><b style="font-size:8pt;">1. OFFICE/DEPARTMENT</b><br/>Tunga Elementary School</td>
 <td style="width:56%;"><b style="font-size:8pt;">2. NAME (Last, First, Middle):</b><br/>
 <span style="border-bottom:0.5pt solid #000;display:inline-block;min-width:1.3in;padding:0 3pt;">${last}</span>&nbsp;
 <span style="border-bottom:0.5pt solid #000;display:inline-block;min-width:1in;padding:0 3pt;">${first}</span>&nbsp;
@@ -2058,17 +2058,17 @@ td{border:0.75pt solid #000;padding:3pt 5pt;vertical-align:top;font-size:8.5pt;}
 <div class="chk-row" style="font-style:italic;">Others: ${(is("Wellness")||is("CTO")||is("Mental Health")||is("Service Credits")||is("Others"))?l.type.replace(/^Others:\s*/,"").replace(" (Others)",""):"___________"}</div></td>
 <td style="width:50%;"><b>6.B DETAILS OF LEAVE</b>
 <div style="font-style:italic;font-size:8pt;margin-top:3pt;">In case of Vacation/Special Privilege Leave:</div>
-<div class="chk-row">${l.whereabouts?.toLowerCase().includes("phil")?chk:unc} Within the Philippines</div>
-<div class="chk-row">${l.whereabouts?.toLowerCase().includes("abroad")?chk:unc} Abroad (Specify): ${l.whereabouts?.toLowerCase().includes("abroad")?l.whereabouts.replace(/abroad/i,"").trim():""}</div>
+<div class="chk-row">${(l.type==="Vacation Leave"||l.type==="Special Privilege Leave"||l.type==="Sick Leave")&&l.whereabouts?.toLowerCase().includes("phil")&&!l.whereabouts?.toLowerCase().startsWith("abroad")?chk:unc} Within the Philippines</div>
+<div class="chk-row">${(l.type==="Vacation Leave"||l.type==="Special Privilege Leave"||l.type==="Sick Leave")&&l.whereabouts?.toLowerCase().startsWith("abroad")?chk:unc} Abroad (Specify): ${l.whereabouts?.toLowerCase().startsWith("abroad")?l.whereabouts.replace(/^abroad:?\s*/i,"").trim():""}</div>
 <div style="font-style:italic;font-size:8pt;margin-top:3pt;">In case of Sick Leave:</div>
-<div class="chk-row">${l.sickType==="hospital"?chk:unc} In Hospital (Specify Illness): ${l.sickType==="hospital"?(l.illness||""):""}</div>
-<div class="chk-row">${l.sickType==="outpatient"?chk:unc} Out Patient (Specify Illness): ${l.sickType==="outpatient"?(l.illness||""):""}</div>
+<div class="chk-row">${l.type==="Sick Leave"&&l.sickType==="hospital"?chk:unc} In Hospital (Specify Illness): ${l.type==="Sick Leave"&&l.sickType==="hospital"?(l.illness||""):""}</div>
+<div class="chk-row">${l.type==="Sick Leave"&&l.sickType==="outpatient"?chk:unc} Out Patient (Specify Illness): ${l.type==="Sick Leave"&&l.sickType==="outpatient"?(l.illness||""):""}</div>
 <div style="font-style:italic;font-size:8pt;margin-top:3pt;">In case of Study Leave:</div>
-<div class="chk-row">${unc} Completion of Master's Degree</div>
-<div class="chk-row">${unc} BAR/Board Examination Review</div>
+<div class="chk-row">${l.type==="Study Leave"&&l.studyType==="masters"?chk:unc} Completion of Master's Degree</div>
+<div class="chk-row">${l.type==="Study Leave"&&l.studyType==="bar"?chk:unc} BAR/Board Examination Review</div>
 <div style="font-style:italic;font-size:8pt;margin-top:3pt;">Other purpose:</div>
-<div class="chk-row">${unc} Monetization of Leave Credits</div>
-<div class="chk-row">${unc} Terminal Leave</div>
+<div class="chk-row">${l.otherPurpose==="monetization"?chk:unc} Monetization of Leave Credits</div>
+<div class="chk-row">${l.otherPurpose==="terminal"?chk:unc} Terminal Leave</div>
 ${l.reliever?`<div style="margin-top:3pt;font-size:8pt;"><b>Teacher Reliever:</b> ${l.reliever}</div>`:""}
 ${l.serviceCreditsUsed>0?`<div style="font-size:8pt;"><b>Service Credits Applied:</b> ${l.serviceCreditsUsed} day(s)</div>`:""}
 ${l.reason?`<div style="margin-top:2pt;font-size:8pt;font-style:italic;">${l.reason}</div>`:""}</td></tr>
