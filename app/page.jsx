@@ -1862,7 +1862,12 @@ tr:nth-child(even){background:#f5f7fa;}
     // Print CS Form 6 (HTML -> browser print dialog -> save as PDF)
     // Pixel-close reproduction of CS Form 6 Revised 2020, 1-page long bond (8.5 x 13")
     const printCS6=(l,withSig=true)=>{
-      const chk="☑";const unc="☐";
+      /* PHASE_23_BOX_CHECKBOXES - Match original CS Form 6 template look. The original template
+         uses drawn box outlines for every checkbox in §6.A/§6.B/§6.D/§7.B; this generator was
+         using Unicode ☑/☐ glyphs which look different. Use small CSS-bordered spans with an
+         optional inline ✓ for ticked, and an empty span for unchecked. */
+      const chk=`<span style="display:inline-block;width:9pt;height:9pt;border:0.75pt solid #000;text-align:center;line-height:7.5pt;font-size:8pt;font-weight:bold;vertical-align:middle;margin-right:2pt;">✓</span>`;
+      const unc=`<span style="display:inline-block;width:9pt;height:9pt;border:0.75pt solid #000;vertical-align:middle;margin-right:2pt;"></span>`;
       const is=(t)=>l.type===t||l.type?.includes(t);
       // Parse name into Last, First, Middle.
       // "DELA CRUZ, Juan P."   -> Last:"DELA CRUZ", First:"Juan", Middle:"P."
@@ -2017,7 +2022,9 @@ ${l.reason?`<div style="margin-top:6pt;font-size:8pt;"><b>Reason:</b> <span styl
 
     // Download CS Form 6 as DOCX (Word-compatible HTML with long bond page setup)
     const downloadCS6Docx=(l,withSig=true)=>{
-      const chk="☑";const unc="☐";
+      /* PHASE_23B - drawn box outlines instead of Unicode glyphs to match template aesthetic */
+      const chk=`<span style="display:inline-block;width:9pt;height:9pt;border:0.75pt solid #000;text-align:center;line-height:7.5pt;font-size:8pt;font-weight:bold;vertical-align:middle;margin-right:2pt;">✓</span>`;
+      const unc=`<span style="display:inline-block;width:9pt;height:9pt;border:0.75pt solid #000;vertical-align:middle;margin-right:2pt;"></span>`;
       const is=(t)=>l.type===t||l.type?.includes(t);
       const _parseName=(full)=>{const s=(full||"").trim();if(!s)return{last:"",first:"",middle:""};
         if(s.includes(",")){const[l1,rest]=s.split(/,\s*/);const tok=(rest||"").split(/\s+/).filter(Boolean);return{last:l1.trim(),first:tok[0]||"",middle:tok.slice(1).join(" ")};}
