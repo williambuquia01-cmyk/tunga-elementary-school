@@ -748,41 +748,43 @@ async function buildCS6Docx_v2(leave, withSig) {
     const _mkCheck = (h, yOff) => '<a:path w="157480" h="' + h + '"><a:moveTo><a:pt x="25000" y="' + (50000 + yOff) + '"/></a:moveTo><a:lnTo><a:pt x="60000" y="' + (110000 + yOff) + '"/></a:lnTo></a:path><a:path w="157480" h="' + h + '"><a:moveTo><a:pt x="60000" y="' + (110000 + yOff) + '"/></a:moveTo><a:lnTo><a:pt x="135000" y="' + (20000 + yOff) + '"/></a:lnTo></a:path>';
     const _mkLastPath = (h, ly) => '<a:path w="157480" h="' + h + '"><a:moveTo><a:pt x="10160" y="' + ly + '"/></a:moveTo><a:lnTo><a:pt x="157479" y="' + ly + '"/></a:lnTo></a:path>';
 
-    /* PHASE_12_SEMANTIC_GUARDS (RELAXED via PHASE_13B, RE-TIGHTENED via PHASE_16) — Phase 13B was
-       too permissive: filing CTO with stale Within/OutPatient values from a previous form session
-       caused those boxes to tick. PHASE 16 reverts to leave-type-based guards but expands the
-       "allowed" sets so explicit user intent is honored where it makes sense:
-         • Whereabouts: Vacation, Special Privilege, Sick Leave (people can be in/out of country)
-         • Hospital/OutPatient: Sick Leave only (these labels are literally under "Sick Leave:")
-         • Master's/BAR: Study Leave only
-       For CTO/Mandatory/Adoption/etc. — none of these checkboxes apply, so they stay blank
-       even if stale data is in the leave object. */
+    /* PHASE_12_SEMANTIC_GUARDS (RELAXED via PHASE_13B, RE-TIGHTENED via PHASE_16, RELAXED AGAIN via
+       PHASE_20) — User feedback: Phase 16's strict guards block Within/Hospital choices on CTO leaves
+       even when the user explicitly picks them. Real-world DepEd practice often ticks Within
+       Philippines or Hospital on non-Vacation/non-Sick leaves to indicate employee location/status
+       during the leave period. PHASE 20 honors the user's explicit panel choice for every §6.B
+       group, regardless of leave type. Stale-data risk is mitigated by Phase 11 (modal-open reset)
+       and Phase 16B (leave-type-change reset) which clear panel fields when those events fire. */
     const _lt = leave.type || "";
-    const _wAllowed = _lt === "Vacation Leave" || _lt === "Special Privilege Leave" || _lt === "Sick Leave";
-    const _sAllowed = _lt === "Sick Leave";
-    const _stAllowed = _lt === "Study Leave";
+    /* Only condition: user must have made a non-empty/non-default choice in the panel */
+    const _withinChosenRaw  = (leave.whereabouts || "").toLowerCase();
+    const _withinChosen     = _withinChosenRaw.startsWith("within") || (_withinChosenRaw.includes("philippines") && !_withinChosenRaw.startsWith("abroad"));
+    const _abroadChosen     = _withinChosenRaw.startsWith("abroad");
+    const _hospitalChosen   = leave.sickType === "hospital";
+    const _outpatientChosen = leave.sickType === "outpatient";
+    const _mastersChosen    = leave.studyType === "masters";
+    const _barChosen        = leave.studyType === "bar";
+    /* _sAllowed retained for the illness-text guard at the end of this block */
+    const _sAllowed = _hospitalChosen || _outpatientChosen;
 
     /* A. Whereabouts — Within Philippines / Abroad (h=342900, last_y=332739) */
-    const _w = (leave.whereabouts || "").toLowerCase();
-    const _withinChosen = _w.startsWith("within") || (_w.includes("philippines") && !_w.startsWith("abroad"));
-    const _abroadChosen = _w.startsWith("abroad");
-    if (_wAllowed && (_withinChosen || _abroadChosen)) {
+    if (_withinChosen || _abroadChosen) {
       const _lp = _mkLastPath('342900', '332739');
       const _yOff = _abroadChosen ? 197484 : 10160;
       xml = xml.replace(_lp + '</a:pathLst>', _lp + _mkCheck('342900', _yOff) + '</a:pathLst>');
     }
 
     /* B. Sick leave — In Hospital / Out Patient (h=342900, last_y=333374) [PHASE 14 corrected] */
-    if (_sAllowed && (leave.sickType === "hospital" || leave.sickType === "outpatient")) {
+    if (_hospitalChosen || _outpatientChosen) {
       const _lp = _mkLastPath('342900', '333374');
-      const _yOff = leave.sickType === "outpatient" ? 197484 : 10160;
+      const _yOff = _outpatientChosen ? 197484 : 10160;
       xml = xml.replace(_lp + '</a:pathLst>', _lp + _mkCheck('342900', _yOff) + '</a:pathLst>');
     }
 
     /* C. Study Leave — Master's Degree / BAR Review (h=350520, last_y=340995) [PHASE 14 corrected] */
-    if (_stAllowed && (leave.studyType === "masters" || leave.studyType === "bar")) {
+    if (_mastersChosen || _barChosen) {
       const _lp = _mkLastPath('350520', '340995');
-      const _yOff = leave.studyType === "bar" ? 197485 : 10160;
+      const _yOff = _barChosen ? 197485 : 10160;
       xml = xml.replace(_lp + '</a:pathLst>', _lp + _mkCheck('350520', _yOff) + '</a:pathLst>');
     }
 
@@ -1961,16 +1963,16 @@ td{border:0.75pt solid #000;padding:3pt 5pt;vertical-align:top;font-size:8.5pt;l
 <span class="chk-row italic" style="margin-top:2pt;">Others: <span class="underline" style="min-width:1.4in;">${(is("Wellness")||is("CTO")||is("Mental Health")||is("Service Credits")||is("Others"))?l.type.replace(/^Others:\s*/,"").replace(" (Others)",""):""}</span></span></td>
 <td style="width:50%;padding:4pt 5pt;"><span class="tl-label">6.B DETAILS OF LEAVE</span>
 <div class="detail-label">In case of Vacation/Special Privilege Leave:</div>
-<span class="chk-row"><span class="chk">${(l.type==="Vacation Leave"||l.type==="Special Privilege Leave"||l.type==="Sick Leave")&&l.whereabouts?.toLowerCase().includes("phil")&&!l.whereabouts?.toLowerCase().startsWith("abroad")?chk:unc}</span> Within the Philippines <span class="underline" style="min-width:1.2in;"></span></span>
-<span class="chk-row"><span class="chk">${(l.type==="Vacation Leave"||l.type==="Special Privilege Leave"||l.type==="Sick Leave")&&l.whereabouts?.toLowerCase().startsWith("abroad")?chk:unc}</span> Abroad <span class="italic">(Specify)</span> <span class="underline" style="min-width:1.1in;">${l.whereabouts?.toLowerCase().startsWith("abroad")?l.whereabouts.replace(/^abroad:?\s*/i,"").trim():""}</span></span>
+<span class="chk-row"><span class="chk">${l.whereabouts?.toLowerCase().includes("phil")&&!l.whereabouts?.toLowerCase().startsWith("abroad")?chk:unc}</span> Within the Philippines <span class="underline" style="min-width:1.2in;"></span></span>
+<span class="chk-row"><span class="chk">${l.whereabouts?.toLowerCase().startsWith("abroad")?chk:unc}</span> Abroad <span class="italic">(Specify)</span> <span class="underline" style="min-width:1.1in;">${l.whereabouts?.toLowerCase().startsWith("abroad")?l.whereabouts.replace(/^abroad:?\s*/i,"").trim():""}</span></span>
 <div class="detail-label">In case of Sick Leave:</div>
-<span class="chk-row"><span class="chk">${l.type==="Sick Leave"&&l.sickType==="hospital"?chk:unc}</span> In Hospital <span class="italic">(Specify Illness)</span> <span class="underline" style="min-width:1.0in;">${l.type==="Sick Leave"&&l.sickType==="hospital"?(l.illness||""):""}</span></span>
-<span class="chk-row"><span class="chk">${l.type==="Sick Leave"&&l.sickType==="outpatient"?chk:unc}</span> Out Patient <span class="italic">(Specify Illness)</span> <span class="underline" style="min-width:1.0in;">${l.type==="Sick Leave"&&l.sickType==="outpatient"?(l.illness||""):""}</span></span>
+<span class="chk-row"><span class="chk">${l.sickType==="hospital"?chk:unc}</span> In Hospital <span class="italic">(Specify Illness)</span> <span class="underline" style="min-width:1.0in;">${l.sickType==="hospital"?(l.illness||""):""}</span></span>
+<span class="chk-row"><span class="chk">${l.sickType==="outpatient"?chk:unc}</span> Out Patient <span class="italic">(Specify Illness)</span> <span class="underline" style="min-width:1.0in;">${l.sickType==="outpatient"?(l.illness||""):""}</span></span>
 <div class="detail-label">In case of Special Leave Benefits for Women:</div>
 <span class="chk-row">(Specify Illness) <span class="underline" style="min-width:1.8in;"></span></span>
 <div class="detail-label">In case of Study Leave:</div>
-<span class="chk-row"><span class="chk">${l.type==="Study Leave"&&l.studyType==="masters"?chk:unc}</span> Completion of Master's Degree</span>
-<span class="chk-row"><span class="chk">${l.type==="Study Leave"&&l.studyType==="bar"?chk:unc}</span> BAR/Board Examination Review</span>
+<span class="chk-row"><span class="chk">${l.studyType==="masters"?chk:unc}</span> Completion of Master's Degree</span>
+<span class="chk-row"><span class="chk">${l.studyType==="bar"?chk:unc}</span> BAR/Board Examination Review</span>
 <div class="detail-label">Other purpose:</div>
 <span class="chk-row"><span class="chk">${l.otherPurpose==="monetization"?chk:unc}</span> Monetization of Leave Credits</span>
 <span class="chk-row"><span class="chk">${l.otherPurpose==="terminal"?chk:unc}</span> Terminal Leave</span>
@@ -2080,14 +2082,14 @@ td{border:0.75pt solid #000;padding:3pt 5pt;vertical-align:top;font-size:8.5pt;}
 <div class="chk-row" style="font-style:italic;">Others: ${(is("Wellness")||is("CTO")||is("Mental Health")||is("Service Credits")||is("Others"))?l.type.replace(/^Others:\s*/,"").replace(" (Others)",""):"___________"}</div></td>
 <td style="width:50%;"><b>6.B DETAILS OF LEAVE</b>
 <div style="font-style:italic;font-size:8pt;margin-top:3pt;">In case of Vacation/Special Privilege Leave:</div>
-<div class="chk-row">${(l.type==="Vacation Leave"||l.type==="Special Privilege Leave"||l.type==="Sick Leave")&&l.whereabouts?.toLowerCase().includes("phil")&&!l.whereabouts?.toLowerCase().startsWith("abroad")?chk:unc} Within the Philippines</div>
-<div class="chk-row">${(l.type==="Vacation Leave"||l.type==="Special Privilege Leave"||l.type==="Sick Leave")&&l.whereabouts?.toLowerCase().startsWith("abroad")?chk:unc} Abroad (Specify): ${l.whereabouts?.toLowerCase().startsWith("abroad")?l.whereabouts.replace(/^abroad:?\s*/i,"").trim():""}</div>
+<div class="chk-row">${l.whereabouts?.toLowerCase().includes("phil")&&!l.whereabouts?.toLowerCase().startsWith("abroad")?chk:unc} Within the Philippines</div>
+<div class="chk-row">${l.whereabouts?.toLowerCase().startsWith("abroad")?chk:unc} Abroad (Specify): ${l.whereabouts?.toLowerCase().startsWith("abroad")?l.whereabouts.replace(/^abroad:?\s*/i,"").trim():""}</div>
 <div style="font-style:italic;font-size:8pt;margin-top:3pt;">In case of Sick Leave:</div>
-<div class="chk-row">${l.type==="Sick Leave"&&l.sickType==="hospital"?chk:unc} In Hospital (Specify Illness): ${l.type==="Sick Leave"&&l.sickType==="hospital"?(l.illness||""):""}</div>
-<div class="chk-row">${l.type==="Sick Leave"&&l.sickType==="outpatient"?chk:unc} Out Patient (Specify Illness): ${l.type==="Sick Leave"&&l.sickType==="outpatient"?(l.illness||""):""}</div>
+<div class="chk-row">${l.sickType==="hospital"?chk:unc} In Hospital (Specify Illness): ${l.sickType==="hospital"?(l.illness||""):""}</div>
+<div class="chk-row">${l.sickType==="outpatient"?chk:unc} Out Patient (Specify Illness): ${l.sickType==="outpatient"?(l.illness||""):""}</div>
 <div style="font-style:italic;font-size:8pt;margin-top:3pt;">In case of Study Leave:</div>
-<div class="chk-row">${l.type==="Study Leave"&&l.studyType==="masters"?chk:unc} Completion of Master's Degree</div>
-<div class="chk-row">${l.type==="Study Leave"&&l.studyType==="bar"?chk:unc} BAR/Board Examination Review</div>
+<div class="chk-row">${l.studyType==="masters"?chk:unc} Completion of Master's Degree</div>
+<div class="chk-row">${l.studyType==="bar"?chk:unc} BAR/Board Examination Review</div>
 <div style="font-style:italic;font-size:8pt;margin-top:3pt;">Other purpose:</div>
 <div class="chk-row">${l.otherPurpose==="monetization"?chk:unc} Monetization of Leave Credits</div>
 <div class="chk-row">${l.otherPurpose==="terminal"?chk:unc} Terminal Leave</div>
