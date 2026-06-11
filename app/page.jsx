@@ -898,9 +898,11 @@ export default function App(){
   const[sy,setSy]=useStore("current_sy","2025-2026");
   const[sideOpen,setSideOpen]=useState(false);
   const[modal,setModal]=useState(null);
-  const[f,setF]=useState({});
-  const ff=(k,v)=>setF(p=>({...p,[k]:v}));
-  const fr=()=>setF({});
+  const fRef=useRef({});
+  const[,refreshForm]=useState(0);
+  const f=fRef.current;
+  const ff=(k,v)=>{fRef.current[k]=v;};
+  const fr=()=>{Object.keys(fRef.current).forEach(k=>delete fRef.current[k]);refreshForm(x=>x+1);};
   // Hoisted page-level states (survive re-renders so typing in modals doesn't kick users out)
   const[ppssSel,setPpssSel]=useState(null);
   const[ppstSel,setPpstSel]=useState(null);
