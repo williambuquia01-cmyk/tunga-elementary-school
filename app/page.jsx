@@ -1332,13 +1332,19 @@ body{font-family:'Bookman Old Style','Times New Roman',Georgia,serif;font-size:1
 </div>
 
 </body></html>`;
+      const parsed=new DOMParser().parseFromString(html,"text/html");
+      const styleHtml=Array.from(parsed.head.querySelectorAll("style")).map(s=>s.outerHTML).join("");
       const wrapper=document.createElement("div");
-      wrapper.innerHTML=html;
+      wrapper.innerHTML=styleHtml+parsed.body.innerHTML;
       wrapper.style.position="fixed";
-      wrapper.style.left="-99999px";
+      wrapper.style.left="0";
       wrapper.style.top="0";
       wrapper.style.width="8.5in";
+      wrapper.style.minHeight="13in";
       wrapper.style.background="#ffffff";
+      wrapper.style.zIndex="999999";
+      wrapper.style.pointerEvents="none";
+      wrapper.style.opacity="1";
       document.body.appendChild(wrapper);
 
       import("html2pdf.js").then((mod)=>{
@@ -1347,7 +1353,16 @@ body{font-family:'Bookman Old Style','Times New Roman',Georgia,serif;font-size:1
           margin:0,
           filename:`Tunga-ES-Memo-${(memo.memoNum||memo.subject||"memo").replace(/[^a-z0-9]/gi,"_")}.pdf`,
           image:{type:"jpeg",quality:0.98},
-          html2canvas:{scale:2,useCORS:true,backgroundColor:"#ffffff"},
+          html2canvas:{
+            scale:2,
+            useCORS:true,
+            allowTaint:true,
+            backgroundColor:"#ffffff",
+            windowWidth:816,
+            windowHeight:1248,
+            scrollX:0,
+            scrollY:0
+          },
           jsPDF:{unit:"in",format:[8.5,13],orientation:"portrait"}
         };
 
@@ -1357,12 +1372,14 @@ body{font-family:'Bookman Old Style','Times New Roman',Georgia,serif;font-size:1
             .from(wrapper)
             .save()
             .then(()=>document.body.removeChild(wrapper))
-            .catch(()=>{
+            .catch((err)=>{
+              console.error("PDF download failed:",err);
               document.body.removeChild(wrapper);
               alert("PDF download failed. Please try again.");
             });
-        },300);
-      }).catch(()=>{
+        },500);
+      }).catch((err)=>{
+        console.error("PDF package failed:",err);
         document.body.removeChild(wrapper);
         alert("PDF package failed to load. Please try again.");
       });
