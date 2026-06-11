@@ -246,7 +246,57 @@ const fmtSize=(b)=>b<1024?b+" B":b<1048576?(b/1024).toFixed(1)+" KB":(b/1048576)
 function Modal({open,onClose,title,children,wide}){if(!open)return null;return(<div style={{position:"fixed",inset:0,zIndex:1e3,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(0,0,0,.5)",padding:16}} onClick={onClose}><div style={{background:"#fff",borderRadius:14,width:"100%",maxWidth:wide?700:540,maxHeight:"88vh",overflow:"auto",padding:24,boxShadow:"0 20px 60px rgba(0,0,0,.25)"}} onClick={e=>e.stopPropagation()}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}><h3 style={{margin:0,fontSize:18,fontWeight:700}}>{title}</h3><button onClick={onClose} style={{background:"none",border:"none",cursor:"pointer",color:"#999"}}>{IC.x}</button></div>{children}</div></div>);}
 
 const sI={width:"100%",padding:"9px 12px",border:"1.5px solid #e4e7ec",borderRadius:8,fontSize:14,fontFamily:"inherit",outline:"none",boxSizing:"border-box"};
-const Inp=({label,value,onChange,ph,ta,type})=>(<div style={{marginBottom:12}}>{label&&<label style={{display:"block",fontSize:13,fontWeight:500,color:"#666",marginBottom:3}}>{label}</label>}{ta?<textarea style={{...sI,minHeight:70,resize:"vertical"}} value={value} onChange={e=>onChange(e.target.value)} placeholder={ph}/>:<input style={sI} type={type||"text"} value={value} onChange={e=>onChange(e.target.value)} placeholder={ph}/>}</div>);
+function Inp({label,value,onChange,ph,ta,type}){
+  const [local,setLocal]=useState(value||"");
+  const timerRef=useRef(null);
+
+  useEffect(()=>{
+    setLocal(value||"");
+  },[value]);
+
+  useEffect(()=>{
+    return ()=>{
+      if(timerRef.current) clearTimeout(timerRef.current);
+    };
+  },[]);
+
+  const schedule=(v)=>{
+    setLocal(v);
+    if(timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current=setTimeout(()=>{
+      onChange(v);
+    },250);
+  };
+
+  const commit=(v)=>{
+    if(timerRef.current) clearTimeout(timerRef.current);
+    onChange(v);
+  };
+
+  return(
+    <div style={{marginBottom:12}}>
+      {label&&<label style={{display:"block",fontSize:13,fontWeight:500,color:"#666",marginBottom:3}}>{label}</label>}
+      {ta?
+        <textarea
+          style={{...sI,minHeight:70,resize:"vertical"}}
+          value={local}
+          onChange={e=>schedule(e.target.value)}
+          onBlur={e=>commit(e.target.value)}
+          placeholder={ph}
+        />
+        :
+        <input
+          style={sI}
+          type={type||"text"}
+          value={local}
+          onChange={e=>schedule(e.target.value)}
+          onBlur={e=>commit(e.target.value)}
+          placeholder={ph}
+        />
+      }
+    </div>
+  );
+}
 
 const Btn=({children,onClick,color,sm,outline,full,disabled})=>(<button disabled={disabled} onClick={onClick} style={{display:"inline-flex",alignItems:"center",gap:5,padding:sm?"6px 12px":"9px 16px",background:outline?"transparent":(color||"#1B4D7E"),color:outline?(color||"#1B4D7E"):"#fff",border:outline?`2px solid ${color||"#1B4D7E"}`:"none",borderRadius:8,fontSize:sm?12:13,fontWeight:600,cursor:disabled?"not-allowed":"pointer",opacity:disabled?.5:1,width:full?"100%":undefined,justifyContent:"center",fontFamily:"inherit"}}>{children}</button>);
 
