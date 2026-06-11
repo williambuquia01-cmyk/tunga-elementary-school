@@ -1331,10 +1331,41 @@ body{font-family:'Bookman Old Style','Times New Roman',Georgia,serif;font-size:1
   <div>Schools Division of Cebu Province · Region VII — Central Visayas</div>
 </div>
 
-<script>window.onload=function(){setTimeout(function(){window.print();},500);}<\/script>
 </body></html>`;
-      const w=window.open("","_blank","width=850,height=1100");
-      if(w){w.document.write(html);w.document.close();}
+      const wrapper=document.createElement("div");
+      wrapper.innerHTML=html;
+      wrapper.style.position="fixed";
+      wrapper.style.left="-99999px";
+      wrapper.style.top="0";
+      wrapper.style.width="8.5in";
+      wrapper.style.background="#ffffff";
+      document.body.appendChild(wrapper);
+
+      import("html2pdf.js").then((mod)=>{
+        const html2pdf=mod.default||mod;
+        const opt={
+          margin:0,
+          filename:`Tunga-ES-Memo-${(memo.memoNum||memo.subject||"memo").replace(/[^a-z0-9]/gi,"_")}.pdf`,
+          image:{type:"jpeg",quality:0.98},
+          html2canvas:{scale:2,useCORS:true,backgroundColor:"#ffffff"},
+          jsPDF:{unit:"in",format:[8.5,13],orientation:"portrait"}
+        };
+
+        setTimeout(()=>{
+          html2pdf()
+            .set(opt)
+            .from(wrapper)
+            .save()
+            .then(()=>document.body.removeChild(wrapper))
+            .catch(()=>{
+              document.body.removeChild(wrapper);
+              alert("PDF download failed. Please try again.");
+            });
+        },300);
+      }).catch(()=>{
+        document.body.removeChild(wrapper);
+        alert("PDF package failed to load. Please try again.");
+      });
     };
 
     return(<><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
