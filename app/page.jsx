@@ -1324,15 +1324,32 @@ th{background:#1B4D7E;color:#fff;font-size:9pt;}.sum{background:#e8f0fe;font-wei
         y+=30;
 
         const field=(label,value)=>{
-          pageBreak(26);
+          const valueX=margin+82;
+          const valueW=pageW-margin-valueX;
+          const lines=doc.splitTextToSize(clean(value)||" ",valueW);
+          const lineHeight=15;
+          const blockH=Math.max(24,(lines.length*lineHeight)+8);
+
+          pageBreak(blockH);
+
           doc.setFont("times","bold");
           doc.setFontSize(11);
+          doc.setTextColor(0);
           doc.text(label,margin,y);
 
           doc.setFont("times","normal");
-          doc.text(clean(value),margin+82,y);
-          doc.line(margin+80,y+3,pageW-margin,y+3);
-          y+=24;
+          doc.setFontSize(11);
+          doc.setTextColor(0);
+
+          lines.forEach((ln,i)=>{
+            doc.text(ln,valueX,y+(i*lineHeight));
+          });
+
+          doc.setDrawColor(0);
+          doc.setLineWidth(0.5);
+          doc.line(valueX-2,y+3,pageW-margin,y+3);
+
+          y+=blockH;
         };
 
         if(memo.memoNum){
