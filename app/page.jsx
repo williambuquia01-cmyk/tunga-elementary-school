@@ -1254,135 +1254,137 @@ th{background:#1B4D7E;color:#fff;font-size:9pt;}.sum{background:#e8f0fe;font-wei
     const delMemoFile=(mi,fi)=>setMemos(prev=>prev.map((m,i)=>i===mi?{...m,files:(m.files||[]).filter((_,j)=>j!==fi)}:m));
 
     /* ── DepEd-Formatted PDF Generator ── */
-    const downloadPDF=(memo)=>{
-      const sigUrl=E_SIG;
-      const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Memorandum - ${memo.subject}</title>
-<style>
-@page{size:8.5in 13in;margin:0.8in 1in 0.8in 1in;}
-*{margin:0;padding:0;box-sizing:border-box;}
-body{font-family:'Bookman Old Style','Times New Roman',Georgia,serif;font-size:12pt;color:#000;line-height:1.5;padding:0.8in 1in;}
-.header{text-align:center;margin-bottom:6pt;}
-.header .rep{font-family:'Old English Text MT','Blackletter686 BT','UnifrakturMaguntia',serif;font-size:12pt;font-weight:bold;margin-bottom:0;}
-.header .deped{font-family:'Old English Text MT','Blackletter686 BT','UnifrakturMaguntia',serif;font-size:18pt;font-weight:bold;margin-bottom:2pt;}
-.header .region{font-family:'Trajan Pro','Cinzel','Times New Roman',serif;font-size:10pt;font-weight:bold;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:0;}
-.header .division{font-family:'Trajan Pro','Cinzel','Times New Roman',serif;font-size:10pt;font-weight:bold;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:0;}
-.header .school{font-family:'Trajan Pro','Cinzel','Times New Roman',serif;font-size:11pt;font-weight:bold;letter-spacing:2px;text-transform:uppercase;margin-bottom:1pt;color:#000;}
-.header .school-addr{font-family:'Trajan Pro','Cinzel','Times New Roman',serif;font-size:9pt;letter-spacing:0.5px;margin-bottom:4pt;color:#333;}
-.header .seal{width:0.76in;height:0.76in;object-fit:contain;margin:4pt auto;display:block;}
-.border-line{border:none;border-top:2.5pt solid #000;margin:4pt 0 2pt 0;}
-.office{font-family:Tahoma,Arial,sans-serif;font-size:10pt;font-weight:bold;text-align:left;margin-bottom:16pt;}
-.memo-title{font-family:Tahoma,Arial,sans-serif;font-size:14pt;font-weight:bold;text-align:center;margin:16pt 0 12pt 0;text-decoration:underline;}
-.memo-fields{margin-bottom:14pt;}
-.memo-fields table{width:100%;border-collapse:collapse;}
-.memo-fields td{padding:3pt 6pt;vertical-align:top;font-size:12pt;}
-.memo-fields td.label{font-weight:bold;width:80pt;white-space:nowrap;}
-.memo-fields td.value{border-bottom:1pt solid #000;}
-.memo-body{margin:14pt 0;text-align:justify;font-size:12pt;line-height:1.6;}
-.memo-body p{margin-bottom:8pt;text-indent:36pt;}
-.signature-block{margin-top:36pt;page-break-inside:avoid;}
-.sig-line{margin-bottom:2pt;}
-.sig-img{height:52pt;object-fit:contain;display:block;}
-.sig-name{font-weight:bold;font-size:12pt;text-transform:uppercase;margin-top:-4pt;}
-.sig-title{font-size:10pt;color:#333;}
-.sig-date{font-size:10pt;color:#333;margin-top:2pt;}
-.footer{position:fixed;bottom:0.5in;left:1in;right:1in;text-align:center;font-family:Calibri,Arial,sans-serif;font-size:10pt;color:#555;border-top:1pt solid #ccc;padding-top:6pt;}
-.footer .school-name{font-weight:bold;font-size:10pt;}
-@media print{body{padding:0;margin:0;}.footer{position:fixed;bottom:0;}}
-</style>
-</head><body>
+    const downloadPDF=async(memo)=>{
+      try{
+        const jsPDFModule=await import("jspdf");
+        const jsPDF=jsPDFModule.jsPDF||jsPDFModule.default;
+        const doc=new jsPDF({orientation:"portrait",unit:"pt",format:[612,936]});
 
-<div class="header">
-  <img src="${DEPED_SEAL}" class="seal" alt="DepEd Seal"/>
-  <div class="rep">Republic of the Philippines</div>
-  <div class="deped">Department of Education</div>
-  <div class="region">Region VII — Central Visayas</div>
-  <div class="division">Schools Division of Cebu Province</div>
-  <div class="school">TUNGA ELEMENTARY SCHOOL</div>
-  <div class="school-addr">Tunga, Moalboal, Cebu</div>
-</div>
-<hr class="border-line"/>
-<div class="office">Office of the Principal</div>
+        const pageW=612;
+        const pageH=936;
+        const margin=72;
+        let y=48;
 
-<div class="memo-title">MEMORANDUM</div>
+        const clean=(v)=>(v===undefined||v===null?"":String(v));
+        const filename=`Tunga-ES-Memo-${clean(memo.memoNum||memo.subject||"memo").replace(/[^a-z0-9]/gi,"_")}.pdf`;
 
-<div class="memo-fields"><table>
-  ${memo.memoNum?`<tr><td class="label">No.:</td><td class="value">${memo.memoNum}, s. ${new Date().getFullYear()}</td></tr>`:""}
-  <tr><td class="label">TO:</td><td class="value">${memo.to||"All Teachers, Tunga Elementary School"}</td></tr>
-  <tr><td class="label">FROM:</td><td class="value">${memo.from||"WILLIAM A. BUQUIA, Dev.Ed.D., Principal I"}</td></tr>
-  <tr><td class="label">SUBJECT:</td><td class="value" style="font-weight:bold;text-transform:uppercase">${memo.subject}</td></tr>
-  <tr><td class="label">DATE:</td><td class="value">${memo.date}</td></tr>
-</table></div>
-
-<div class="memo-body">
-  ${(memo.body||"").split("\\n").filter(p=>p.trim()).map(p=>"<p>"+p+"</p>").join("")}
-</div>
-
-<div class="signature-block">
-  <div class="sig-line">Respectfully,</div>
-  <img src="${sigUrl}" class="sig-img" alt="" onerror="this.style.display='none'"/>
-  <div class="sig-name">WILLIAM A. BUQUIA, Dev.Ed.D.</div>
-  <div class="sig-title">Principal I</div>
-  <div class="sig-date">${memo.date}</div>
-</div>
-
-<div class="footer">
-  <div class="school-name">Tunga Elementary School</div>
-  <div>Brgy. Tunga, Moalboal, Cebu · School ID: 119502</div>
-  <div>Schools Division of Cebu Province · Region VII — Central Visayas</div>
-</div>
-
-</body></html>`;
-      const parsed=new DOMParser().parseFromString(html,"text/html");
-      const styleHtml=Array.from(parsed.head.querySelectorAll("style")).map(s=>s.outerHTML).join("");
-      const wrapper=document.createElement("div");
-      wrapper.innerHTML=styleHtml+parsed.body.innerHTML;
-      wrapper.style.position="fixed";
-      wrapper.style.left="0";
-      wrapper.style.top="0";
-      wrapper.style.width="8.5in";
-      wrapper.style.minHeight="13in";
-      wrapper.style.background="#ffffff";
-      wrapper.style.zIndex="999999";
-      wrapper.style.pointerEvents="none";
-      wrapper.style.opacity="1";
-      document.body.appendChild(wrapper);
-
-      import("html2pdf.js").then((mod)=>{
-        const html2pdf=mod.default||mod;
-        const opt={
-          margin:0,
-          filename:`Tunga-ES-Memo-${(memo.memoNum||memo.subject||"memo").replace(/[^a-z0-9]/gi,"_")}.pdf`,
-          image:{type:"jpeg",quality:0.98},
-          html2canvas:{
-            scale:2,
-            useCORS:true,
-            allowTaint:true,
-            backgroundColor:"#ffffff",
-            windowWidth:816,
-            windowHeight:1248,
-            scrollX:0,
-            scrollY:0
-          },
-          jsPDF:{unit:"in",format:[8.5,13],orientation:"portrait"}
+        const pageBreak=(need=30)=>{
+          if(y+need>pageH-margin){
+            doc.addPage();
+            y=margin;
+          }
         };
 
-        setTimeout(()=>{
-          html2pdf()
-            .set(opt)
-            .from(wrapper)
-            .save()
-            .then(()=>document.body.removeChild(wrapper))
-            .catch((err)=>{
-              console.error("PDF download failed:",err);
-              document.body.removeChild(wrapper);
-              alert("PDF download failed. Please try again.");
+        const center=(txt,size=10,bold=false)=>{
+          doc.setFont("times",bold?"bold":"normal");
+          doc.setFontSize(size);
+          doc.text(clean(txt),pageW/2,y,{align:"center"});
+          y+=size+4;
+        };
+
+        const line=()=>{
+          doc.setDrawColor(0);
+          doc.setLineWidth(0.5);
+          doc.line(margin,y,pageW-margin,y);
+          y+=12;
+        };
+
+        try{
+          doc.addImage(LOGO,"JPEG",margin,40,54,54);
+        }catch(e){}
+
+        center("Republic of the Philippines",10,false);
+        center("Department of Education",11,true);
+        center("Region VII - Central Visayas",10,false);
+        center("Schools Division of Cebu Province",10,false);
+        center("TUNGA ELEMENTARY SCHOOL",12,true);
+        center("Moalboal, Cebu",10,false);
+
+        y+=10;
+        line();
+
+        doc.setFont("times","bold");
+        doc.setFontSize(14);
+        doc.text("MEMORANDUM",pageW/2,y,{align:"center"});
+        y+=30;
+
+        const field=(label,value)=>{
+          pageBreak(26);
+          doc.setFont("times","bold");
+          doc.setFontSize(11);
+          doc.text(label,margin,y);
+          doc.setFont("times","normal");
+          doc.text(clean(value),margin+82,y);
+          doc.line(margin+80,y+3,pageW-margin,y+3);
+          y+=24;
+        };
+
+        if(memo.memoNum){
+          field("No.:",`${memo.memoNum}, s. ${new Date().getFullYear()}`);
+        }
+        field("TO:",memo.to||"All Teachers, Tunga Elementary School");
+        field("FROM:",memo.from||"WILLIAM A. BUQUIA, Dev.Ed.D. Principal I");
+        field("SUBJECT:",clean(memo.subject).toUpperCase());
+        field("DATE:",memo.date||new Date().toLocaleDateString());
+
+        y+=8;
+
+        doc.setFont("times","normal");
+        doc.setFontSize(12);
+
+        const bodyText=clean(memo.body)||"";
+        const paragraphs=bodyText.split(/\n+/).map(p=>p.trim()).filter(Boolean);
+
+        if(paragraphs.length===0){
+          pageBreak(24);
+          doc.text("No memo body provided.",margin,y);
+          y+=20;
+        }else{
+          paragraphs.forEach((p)=>{
+            const lines=doc.splitTextToSize("     "+p,pageW-(margin*2));
+            lines.forEach((ln)=>{
+              pageBreak(18);
+              doc.text(ln,margin,y);
+              y+=17;
             });
-        },500);
-      }).catch((err)=>{
-        console.error("PDF package failed:",err);
-        document.body.removeChild(wrapper);
-        alert("PDF package failed to load. Please try again.");
-      });
+            y+=8;
+          });
+        }
+
+        y+=20;
+        pageBreak(120);
+
+        doc.setFont("times","normal");
+        doc.setFontSize(12);
+        doc.text("Respectfully,",margin,y);
+        y+=44;
+
+        try{
+          doc.addImage(E_SIG,"PNG",margin,y-42,140,45);
+        }catch(e){
+          try{doc.addImage(E_SIG,"JPEG",margin,y-42,140,45);}catch(e2){}
+        }
+
+        doc.setFont("times","bold");
+        doc.text("WILLIAM A. BUQUIA, Dev.Ed.D.",margin,y);
+        y+=16;
+
+        doc.setFont("times","normal");
+        doc.text("Principal I",margin,y);
+        y+=16;
+
+        doc.text(clean(memo.date||new Date().toLocaleDateString()),margin,y);
+
+        doc.setFontSize(9);
+        doc.setTextColor(80);
+        doc.text("Tunga Elementary School | Brgy. Tunga, Moalboal, Cebu | School ID: 119502",pageW/2,pageH-42,{align:"center"});
+        doc.text("Schools Division of Cebu Province | Region VII - Central Visayas",pageW/2,pageH-28,{align:"center"});
+
+        doc.save(filename);
+      }catch(err){
+        console.error("PDF generation failed:",err);
+        alert("PDF generation failed. Please run: npm install jspdf");
+      }
     };
 
     return(<><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
