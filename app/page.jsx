@@ -1263,10 +1263,17 @@ th{background:#1B4D7E;color:#fff;font-size:9pt;}.sum{background:#e8f0fe;font-wei
         const pageW=612;
         const pageH=936;
         const margin=72;
-        let y=48;
+        let y=36;
 
         const clean=(v)=>(v===undefined||v===null?"":String(v));
         const filename=`Tunga-ES-Memo-${clean(memo.memoNum||memo.subject||"memo").replace(/[^a-z0-9]/gi,"_")}.pdf`;
+
+        const loadImage=(src)=>new Promise((resolve,reject)=>{
+          const img=new Image();
+          img.onload=()=>resolve(img);
+          img.onerror=reject;
+          img.src=src;
+        });
 
         const pageBreak=(need=30)=>{
           if(y+need>pageH-margin){
@@ -1278,29 +1285,37 @@ th{background:#1B4D7E;color:#fff;font-size:9pt;}.sum{background:#e8f0fe;font-wei
         const center=(txt,size=10,bold=false)=>{
           doc.setFont("times",bold?"bold":"normal");
           doc.setFontSize(size);
+          doc.setTextColor(0);
           doc.text(clean(txt),pageW/2,y,{align:"center"});
           y+=size+4;
         };
 
         const line=()=>{
           doc.setDrawColor(0);
-          doc.setLineWidth(0.5);
+          doc.setLineWidth(0.8);
           doc.line(margin,y,pageW-margin,y);
-          y+=12;
+          y+=14;
         };
 
         try{
-          doc.addImage(LOGO,"JPEG",margin,40,54,54);
-        }catch(e){}
+          const depedLogo=await loadImage("/deped-logo.png");
+          const logoSize=70;
+          const logoX=(pageW-logoSize)/2;
+          doc.addImage(depedLogo,"PNG",logoX,24,logoSize,logoSize);
+        }catch(e){
+          console.error("DepEd logo failed to load:",e);
+        }
+
+        y=112;
 
         center("Republic of the Philippines",10,false);
-        center("Department of Education",11,true);
+        center("Department of Education",12,true);
         center("Region VII - Central Visayas",10,false);
         center("Schools Division of Cebu Province",10,false);
         center("TUNGA ELEMENTARY SCHOOL",12,true);
-        center("Moalboal, Cebu",10,false);
+        center("Tunga, Moalboal, Cebu",10,false);
 
-        y+=10;
+        y+=6;
         line();
 
         doc.setFont("times","bold");
@@ -1313,6 +1328,7 @@ th{background:#1B4D7E;color:#fff;font-size:9pt;}.sum{background:#e8f0fe;font-wei
           doc.setFont("times","bold");
           doc.setFontSize(11);
           doc.text(label,margin,y);
+
           doc.setFont("times","normal");
           doc.text(clean(value),margin+82,y);
           doc.line(margin+80,y+3,pageW-margin,y+3);
@@ -1322,15 +1338,17 @@ th{background:#1B4D7E;color:#fff;font-size:9pt;}.sum{background:#e8f0fe;font-wei
         if(memo.memoNum){
           field("No.:",`${memo.memoNum}, s. ${new Date().getFullYear()}`);
         }
+
         field("TO:",memo.to||"All Teachers, Tunga Elementary School");
-        field("FROM:",memo.from||"WILLIAM A. BUQUIA, Dev.Ed.D. Principal I");
+        field("FROM:",memo.from||"WILLIAM A. BUQUIA, Dev.Ed.D.");
         field("SUBJECT:",clean(memo.subject).toUpperCase());
         field("DATE:",memo.date||new Date().toLocaleDateString());
 
-        y+=8;
+        y+=10;
 
         doc.setFont("times","normal");
         doc.setFontSize(12);
+        doc.setTextColor(0);
 
         const bodyText=clean(memo.body)||"";
         const paragraphs=bodyText.split(/\n+/).map(p=>p.trim()).filter(Boolean);
@@ -1371,19 +1389,16 @@ th{background:#1B4D7E;color:#fff;font-size:9pt;}.sum{background:#e8f0fe;font-wei
 
         doc.setFont("times","normal");
         doc.text("Principal I",margin,y);
-        y+=16;
-
-        doc.text(clean(memo.date||new Date().toLocaleDateString()),margin,y);
 
         doc.setFontSize(9);
         doc.setTextColor(80);
-        doc.text("Tunga Elementary School | Brgy. Tunga, Moalboal, Cebu | School ID: 119502",pageW/2,pageH-42,{align:"center"});
+        doc.text("Tunga Elementary School | Tunga, Moalboal, Cebu",pageW/2,pageH-42,{align:"center"});
         doc.text("Schools Division of Cebu Province | Region VII - Central Visayas",pageW/2,pageH-28,{align:"center"});
 
         doc.save(filename);
       }catch(err){
         console.error("PDF generation failed:",err);
-        alert("PDF generation failed. Please run: npm install jspdf");
+        alert("PDF generation failed. Please check that public/deped-logo.png exists and jspdf is installed.");
       }
     };
 
